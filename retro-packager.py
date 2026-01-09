@@ -5610,8 +5610,17 @@ class RetroPackagerApp(Gtk.Window):
                 else:
                     rom_launch_path = shlex.quote(str(rom_path))
 
-                # Create launch script
-                launch_script = f"""#!/bin/bash
+                # Create launch script with optional XDG_CONFIG_HOME for portable config
+                if system.get("settings_dir"):
+                    # Extract the base config dir (e.g., "RMG.AppImage.config" from "RMG.AppImage.config/RMG")
+                    config_base = system["settings_dir"].split("/")[0]
+                    launch_script = f"""#!/bin/bash
+cd {shlex.quote(str(game_dir))}
+export XDG_CONFIG_HOME="./{config_base}"
+{emulator_launch_path} {system['launch_args']} {rom_launch_path}
+"""
+                else:
+                    launch_script = f"""#!/bin/bash
 cd {shlex.quote(str(game_dir))}
 {emulator_launch_path} {system['launch_args']} {rom_launch_path}
 """
