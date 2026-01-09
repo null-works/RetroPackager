@@ -18,9 +18,9 @@ RetroPackager is a GTK3 Python application for downloading, packaging, and insta
 | Class | Lines | Purpose |
 |-------|-------|---------|
 | `DebugLog` | 61-95 | Singleton logger with UI callback support |
-| `SteamShortcuts` | 1036-1380 | Steam shortcuts.vdf binary parser/writer |
-| `SteamGridDB` | 1385-1644 | SteamGridDB API client for artwork |
-| `RetroPackagerApp` | 1647-4454 | Main GTK3 application window |
+| `SteamShortcuts` | 1036-1485 | Steam shortcuts.vdf binary parser/writer + removal |
+| `SteamGridDB` | 1486-1745 | SteamGridDB API client for artwork |
+| `RetroPackagerApp` | 1748-4600+ | Main GTK3 application window |
 
 ### Important Functions
 
@@ -90,6 +90,28 @@ Steam grid folder: `~/.steam/steam/userdata/{user_id}/config/grid/`
 - `{app_id}_hero.png` - Hero banner (1920x620)
 - `{app_id}_logo.png` - Logo
 
+### Shortcut Management Methods (SteamShortcuts class)
+```python
+# Add a shortcut
+SteamShortcuts.add_shortcut(name, exe_path, start_dir, icon_path="", tags=[])
+
+# Remove a shortcut by name or exe path
+SteamShortcuts.remove_shortcut(name=None, exe_path=None)
+
+# Remove all shortcuts matching specific tags
+SteamShortcuts.remove_shortcuts_by_tags(['PS1', 'GBA', ...])
+
+# Get all shortcuts
+SteamShortcuts.get_all_shortcuts()  # Returns list of dicts
+
+# Remove artwork for an app
+SteamShortcuts.remove_artwork(app_id)
+```
+
+### Game Tags Used
+- PS1 games: `['PS1', 'PlayStation', 'DuckStation']`
+- GBA games: `['GBA', 'Game Boy Advance', 'mGBA']`
+
 ## Threading Pattern
 
 All network/file operations use daemon threads with GLib.idle_add for UI updates:
@@ -135,13 +157,24 @@ def async_operation():
 - Hardcoded SteamGridDB API key (line 1389) - intentionally kept for personal use
 - Launch scripts now use `shlex.quote()` for path safety
 
-## Recent Fixes (2025-01-09)
+## Recent Changes (2026-01-09)
 
-### Commit 821659c
+### Security & Error Handling Fixes
 1. **Shell injection prevention**: Added `shlex.quote()` to all launch scripts
 2. **VDF backup**: `shortcuts.vdf.backup` created before modification
 3. **Exception handling**: Replaced 8 bare `except:` with specific types
 4. **Dead code**: Removed duplicate `return None` in `SteamGridDB.search_game()`
+
+### Steam Shortcut Management Features
+1. **Uninstall now removes Steam shortcuts**: `_uninstall_game()` removes shortcut + artwork
+2. **View Shortcuts dialog**: Settings → View Shortcuts shows all non-Steam games
+3. **Mass uninstall**: Settings → Remove All Game Shortcuts removes all RetroPackager entries
+4. **Individual removal**: Each shortcut in View dialog has 🗑️ button
+5. **New SteamShortcuts methods**:
+   - `remove_shortcut(name, exe_path)` - Remove single shortcut
+   - `remove_shortcuts_by_tags(tags)` - Mass removal by tag
+   - `get_all_shortcuts()` - List all shortcuts with metadata
+   - `remove_artwork(app_id)` - Clean up Steam grid images
 
 ## Testing Notes
 

@@ -1339,6 +1339,149 @@ class SteamShortcuts:
         if SteamShortcuts.write_shortcuts(shortcuts):
             return app_id  # Return unsigned app_id for artwork filenames
         return None
+
+    @staticmethod
+    def remove_shortcut(name=None, exe_path=None):
+        """Remove a non-Steam game shortcut by name or exe path
+
+        Returns True if shortcut was found and removed, False otherwise
+        """
+        if not name and not exe_path:
+            return False
+
+        shortcuts = SteamShortcuts.read_shortcuts()
+        if not shortcuts:
+            return False
+
+        # Find and remove matching shortcut
+        key_to_remove = None
+        removed_shortcut = None
+        for key, shortcut in shortcuts.items():
+            if name and shortcut.get('AppName') == name:
+                key_to_remove = key
+                removed_shortcut = shortcut
+                break
+            if exe_path:
+                exe_str = f'"{exe_path}"'
+                if shortcut.get('Exe') == exe_str:
+                    key_to_remove = key
+                    removed_shortcut = shortcut
+                    break
+
+        if key_to_remove is None:
+            debug_log(f"Shortcut not found: name={name}, exe={exe_path}")
+            return False
+
+        # Remove the shortcut
+        del shortcuts[key_to_remove]
+        debug_log(f"Removing shortcut: {removed_shortcut.get('AppName', 'unknown')}")
+
+        # Reindex remaining shortcuts (Steam expects sequential indices)
+        reindexed = {}
+        for i, (_, shortcut) in enumerate(sorted(shortcuts.items(), key=lambda x: int(x[0]))):
+            reindexed[str(i)] = shortcut
+
+        # Remove artwork files
+        if removed_shortcut:
+            app_name = removed_shortcut.get('AppName', '')
+            exe = removed_shortcut.get('Exe', '')
+            if app_name and exe:
+                app_id = SteamShortcuts.generate_app_id(exe, app_name)
+                SteamShortcuts.remove_artwork(app_id)
+
+        return SteamShortcuts.write_shortcuts(reindexed)
+
+    @staticmethod
+    def remove_artwork(app_id):
+        """Remove all artwork files for a given app_id"""
+        grid_path = SteamShortcuts.get_grid_path()
+        if not grid_path:
+            return
+
+        # Steam artwork file patterns
+        artwork_files = [
+            f"{app_id}p.png",      # Portrait cover
+            f"{app_id}.png",       # Horizontal grid
+            f"{app_id}_hero.png",  # Hero banner
+            f"{app_id}_logo.png",  # Logo
+            f"{app_id}_icon.png",  # Icon (if exists)
+        ]
+
+        for filename in artwork_files:
+            filepath = grid_path / filename
+            if filepath.exists():
+                try:
+                    filepath.unlink()
+                    debug_log(f"Removed artwork: {filename}")
+                except OSError as e:
+                    debug_log(f"Failed to remove artwork {filename}: {e}")
+
+    @staticmethod
+    def get_all_shortcuts():
+        """Get list of all shortcuts with their details
+
+        Returns list of dicts with 'name', 'exe', 'app_id' keys
+        """
+        shortcuts = SteamShortcuts.read_shortcuts()
+        result = []
+        for key, shortcut in shortcuts.items():
+            name = shortcut.get('AppName', '')
+            exe = shortcut.get('Exe', '')
+            if name and exe:
+                app_id = SteamShortcuts.generate_app_id(exe, name)
+                result.append({
+                    'name': name,
+                    'exe': exe,
+                    'app_id': app_id,
+                    'tags': list(shortcut.get('tags', {}).values()) if isinstance(shortcut.get('tags'), dict) else []
+                })
+        return result
+
+    @staticmethod
+    def remove_shortcuts_by_tags(tags):
+        """Remove all shortcuts that have any of the specified tags
+
+        Returns number of shortcuts removed
+        """
+        shortcuts = SteamShortcuts.read_shortcuts()
+        if not shortcuts:
+            return 0
+
+        tags_set = set(t.lower() for t in tags)
+        keys_to_remove = []
+
+        for key, shortcut in shortcuts.items():
+            shortcut_tags = shortcut.get('tags', {})
+            if isinstance(shortcut_tags, dict):
+                shortcut_tags_lower = set(t.lower() for t in shortcut_tags.values())
+            else:
+                shortcut_tags_lower = set()
+
+            if shortcut_tags_lower & tags_set:  # Intersection
+                keys_to_remove.append(key)
+                # Remove artwork
+                name = shortcut.get('AppName', '')
+                exe = shortcut.get('Exe', '')
+                if name and exe:
+                    app_id = SteamShortcuts.generate_app_id(exe, name)
+                    SteamShortcuts.remove_artwork(app_id)
+                debug_log(f"Marking for removal: {name}")
+
+        if not keys_to_remove:
+            return 0
+
+        # Remove marked shortcuts
+        for key in keys_to_remove:
+            del shortcuts[key]
+
+        # Reindex
+        reindexed = {}
+        for i, (_, shortcut) in enumerate(sorted(shortcuts.items(), key=lambda x: int(x[0]))):
+            reindexed[str(i)] = shortcut
+
+        if SteamShortcuts.write_shortcuts(reindexed):
+            return len(keys_to_remove)
+        return 0
     
     @staticmethod
     def get_grid_path():
@@ -2413,23 +2556,46 @@ class RetroPackagerApp(Gtk.Window):
         dialog.destroy()
     
     def _uninstall_game(self, game_dir, parent_dialog):
-        """Uninstall a game"""
+        """Uninstall a game and remove from Steam"""
+        # Get game name (directory name, but with underscores converted back to spaces for display)
+        game_name = game_dir.name.replace('_', ' ')
+
         confirm = Gtk.MessageDialog(
             transient_for=parent_dialog,
             flags=Gtk.DialogFlags.MODAL,
             message_type=Gtk.MessageType.WARNING,
             buttons=Gtk.ButtonsType.YES_NO,
-            text=f"Uninstall {game_dir.name}?"
+            text=f"Uninstall {game_name}?"
         )
-        confirm.format_secondary_text("This will delete the game files. You'll need to remove it from Steam manually.")
-        
+        confirm.format_secondary_text("This will delete the game files and remove it from Steam.")
+
         response = confirm.run()
         confirm.destroy()
-        
+
         if response == Gtk.ResponseType.YES:
             try:
+                # First, try to remove from Steam shortcuts
+                # Try both the display name and directory name variants
+                launch_path = game_dir / "launch.sh"
+                steam_removed = False
+
+                if launch_path.exists():
+                    steam_removed = SteamShortcuts.remove_shortcut(exe_path=str(launch_path))
+
+                # Also try by name (with underscores as stored, and with spaces)
+                if not steam_removed:
+                    steam_removed = SteamShortcuts.remove_shortcut(name=game_dir.name)
+                if not steam_removed:
+                    steam_removed = SteamShortcuts.remove_shortcut(name=game_name)
+
+                # Delete game files
                 shutil.rmtree(game_dir)
-                self.set_status(f"Uninstalled: {game_dir.name}")
+
+                if steam_removed:
+                    self.set_status(f"Uninstalled: {game_name} (removed from Steam)")
+                else:
+                    self.set_status(f"Uninstalled: {game_name} (Steam shortcut not found)")
+
                 # Refresh the dialog
                 parent_dialog.destroy()
                 self.on_view_games()
@@ -2547,7 +2713,35 @@ class RetroPackagerApp(Gtk.Window):
         steam_add_btn.get_style_context().add_class('accent-button')
         steam_add_btn.connect('clicked', lambda w: self._add_self_to_steam(dialog))
         content.pack_start(steam_add_btn, False, False, 8)
-        
+
+        # Manage Steam Shortcuts section
+        separator2 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        content.pack_start(separator2, False, False, 12)
+
+        manage_label = Gtk.Label(label="Manage Steam Shortcuts")
+        manage_label.set_halign(Gtk.Align.START)
+        manage_label.get_style_context().add_class('menu-button-title')
+        content.pack_start(manage_label, False, False, 0)
+
+        manage_hint = Gtk.Label(label="Remove game shortcuts added by RetroPackager from Steam")
+        manage_hint.set_halign(Gtk.Align.START)
+        manage_hint.get_style_context().add_class('subtitle')
+        content.pack_start(manage_hint, False, False, 0)
+
+        manage_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+
+        view_shortcuts_btn = Gtk.Button(label="📋 View Shortcuts")
+        view_shortcuts_btn.get_style_context().add_class('flat-button')
+        view_shortcuts_btn.connect('clicked', lambda w: self._show_steam_shortcuts_dialog(dialog))
+        manage_box.pack_start(view_shortcuts_btn, False, False, 0)
+
+        remove_all_btn = Gtk.Button(label="🗑️ Remove All Game Shortcuts")
+        remove_all_btn.get_style_context().add_class('flat-button')
+        remove_all_btn.connect('clicked', lambda w: self._remove_all_game_shortcuts(dialog))
+        manage_box.pack_start(remove_all_btn, False, False, 0)
+
+        content.pack_start(manage_box, False, False, 8)
+
         dialog.show_all()
         dialog.run()
         dialog.destroy()
@@ -2580,7 +2774,156 @@ class RetroPackagerApp(Gtk.Window):
             self.set_status("SteamGridDB API key saved!")
         except Exception as e:
             self.set_status(f"Error saving API key: {e}")
-    
+
+    def _show_steam_shortcuts_dialog(self, parent_dialog):
+        """Show dialog listing all Steam shortcuts with option to remove individually"""
+        dialog = Gtk.Dialog(
+            title="Steam Shortcuts",
+            parent=self,
+            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT
+        )
+        dialog.add_buttons(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
+        dialog.set_default_size(600, 400)
+
+        content = dialog.get_content_area()
+        content.set_spacing(12)
+        content.set_margin_start(16)
+        content.set_margin_end(16)
+        content.set_margin_top(16)
+        content.set_margin_bottom(16)
+
+        # Header
+        header = Gtk.Label(label="Non-Steam Game Shortcuts")
+        header.get_style_context().add_class('menu-button-title')
+        header.set_halign(Gtk.Align.START)
+        content.pack_start(header, False, False, 0)
+
+        hint = Gtk.Label(label="These are all non-Steam games in your library. Click 🗑️ to remove.")
+        hint.get_style_context().add_class('subtitle')
+        hint.set_halign(Gtk.Align.START)
+        content.pack_start(hint, False, False, 0)
+
+        # Shortcuts list
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroll.set_vexpand(True)
+
+        listbox = Gtk.ListBox()
+        listbox.set_selection_mode(Gtk.SelectionMode.NONE)
+
+        shortcuts = SteamShortcuts.get_all_shortcuts()
+
+        if not shortcuts:
+            empty_label = Gtk.Label(label="No non-Steam shortcuts found.")
+            empty_label.set_margin_top(20)
+            listbox.add(empty_label)
+        else:
+            for shortcut in shortcuts:
+                row = Gtk.ListBoxRow()
+
+                box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+                box.set_margin_start(8)
+                box.set_margin_end(8)
+                box.set_margin_top(6)
+                box.set_margin_bottom(6)
+
+                # Name
+                name_label = Gtk.Label(label=shortcut['name'])
+                name_label.set_halign(Gtk.Align.START)
+                name_label.get_style_context().add_class('menu-button-title')
+                box.pack_start(name_label, True, True, 0)
+
+                # Tags
+                tags_str = ", ".join(shortcut['tags'][:3]) if shortcut['tags'] else "No tags"
+                tags_label = Gtk.Label(label=tags_str)
+                tags_label.get_style_context().add_class('subtitle')
+                box.pack_start(tags_label, False, False, 0)
+
+                # Remove button
+                remove_btn = Gtk.Button(label="🗑️")
+                remove_btn.set_tooltip_text("Remove from Steam")
+                remove_btn.get_style_context().add_class('flat-button')
+                remove_btn.connect('clicked', lambda w, name=shortcut['name'], d=dialog: self._remove_single_shortcut(name, d))
+                box.pack_end(remove_btn, False, False, 0)
+
+                row.add(box)
+                listbox.add(row)
+
+        scroll.add(listbox)
+        content.pack_start(scroll, True, True, 0)
+
+        # Count label
+        count_label = Gtk.Label(label=f"Total: {len(shortcuts)} shortcuts")
+        count_label.get_style_context().add_class('subtitle')
+        count_label.set_halign(Gtk.Align.START)
+        content.pack_start(count_label, False, False, 0)
+
+        dialog.show_all()
+        dialog.run()
+        dialog.destroy()
+
+    def _remove_single_shortcut(self, name, parent_dialog):
+        """Remove a single shortcut and refresh the dialog"""
+        confirm = Gtk.MessageDialog(
+            transient_for=parent_dialog,
+            flags=Gtk.DialogFlags.MODAL,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.YES_NO,
+            text=f"Remove '{name}' from Steam?"
+        )
+        confirm.format_secondary_text("This will remove the shortcut and its artwork. Game files will not be deleted.")
+
+        response = confirm.run()
+        confirm.destroy()
+
+        if response == Gtk.ResponseType.YES:
+            if SteamShortcuts.remove_shortcut(name=name):
+                self.set_status(f"Removed from Steam: {name}")
+                # Refresh the shortcuts dialog
+                parent_dialog.destroy()
+                self._show_steam_shortcuts_dialog(None)
+            else:
+                self.set_status(f"Failed to remove: {name}")
+
+    def _remove_all_game_shortcuts(self, parent_dialog):
+        """Remove all game shortcuts added by RetroPackager"""
+        # Get count first
+        shortcuts = SteamShortcuts.get_all_shortcuts()
+
+        # Filter to only RetroPackager shortcuts (those with our tags)
+        retro_tags = {'ps1', 'playstation', 'gba', 'game boy advance', 'duckstation', 'mgba'}
+        retro_shortcuts = [s for s in shortcuts if any(t.lower() in retro_tags for t in s['tags'])]
+
+        if not retro_shortcuts:
+            self.show_message("No Shortcuts", "No RetroPackager game shortcuts found in Steam.")
+            return
+
+        confirm = Gtk.MessageDialog(
+            transient_for=parent_dialog,
+            flags=Gtk.DialogFlags.MODAL,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.YES_NO,
+            text=f"Remove {len(retro_shortcuts)} game shortcuts from Steam?"
+        )
+        confirm.format_secondary_text(
+            "This will remove all PS1 and GBA game shortcuts added by RetroPackager.\n\n"
+            "Game files will NOT be deleted - only the Steam library entries.\n\n"
+            "Games:\n" + "\n".join(f"  • {s['name']}" for s in retro_shortcuts[:10]) +
+            (f"\n  ... and {len(retro_shortcuts) - 10} more" if len(retro_shortcuts) > 10 else "")
+        )
+
+        response = confirm.run()
+        confirm.destroy()
+
+        if response == Gtk.ResponseType.YES:
+            # Remove shortcuts with RetroPackager tags
+            removed = SteamShortcuts.remove_shortcuts_by_tags(
+                ['PS1', 'PlayStation', 'GBA', 'Game Boy Advance', 'DuckStation', 'mGBA']
+            )
+            self.set_status(f"Removed {removed} shortcuts from Steam. Restart Steam to see changes.")
+            self.show_message("Shortcuts Removed",
+                f"Removed {removed} game shortcuts from Steam.\n\nRestart Steam to see changes.")
+
     def _generate_frutiger_aero_assets(self):
         """Generate proper Frutiger Aero style graphics for Steam"""
         try:
