@@ -7,6 +7,7 @@ Downloads, packages, and installs PS1 and GBA games directly to Steam
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GLib, Gio, Pango, GdkPixbuf
+import cairo
 import subprocess
 import threading
 import shutil
@@ -2147,10 +2148,10 @@ class SteamGridDB:
 class RetroPackagerApp(Gtk.Window):
     def __init__(self):
         super().__init__(title="RetroPackager")
-        
+
         # Current system (ps1 or gba)
         self.current_system = "ps1"
-        
+
         # Get screen dimensions
         display = Gdk.Display.get_default()
         monitor = display.get_primary_monitor() or display.get_monitor(0)
@@ -2159,7 +2160,7 @@ class RetroPackagerApp(Gtk.Window):
             scale = monitor.get_scale_factor()
             screen_width = geometry.width
             screen_height = geometry.height
-            
+
             # For handhelds (ROG Ally 1920x1080, Steam Deck 1280x800, etc.)
             # Maximize to fill the screen
             if screen_width <= 1920 and screen_height <= 1200:
@@ -2170,13 +2171,13 @@ class RetroPackagerApp(Gtk.Window):
                 self.set_default_size(1200, 800)
         else:
             self.set_default_size(1200, 800)
-        
+
         self.set_position(Gtk.WindowPosition.CENTER)
         self.set_resizable(True)
-        
+
         # Connect to key press for fullscreen toggle
         self.connect('key-press-event', self._on_key_press)
-        
+
         # Apply CSS
         css_provider = Gtk.CssProvider()
         css_provider.load_from_data(CSS.encode())
@@ -2185,10 +2186,25 @@ class RetroPackagerApp(Gtk.Window):
             css_provider,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
-        
-        # Main container
+
+        # Initialize bubble animation
+        self._init_bubbles()
+
+        # Use overlay for bubble background
+        overlay = Gtk.Overlay()
+        self.add(overlay)
+
+        # Bubble drawing area (background layer)
+        self.bubble_canvas = Gtk.DrawingArea()
+        self.bubble_canvas.connect('draw', self._draw_bubbles)
+        overlay.add(self.bubble_canvas)
+
+        # Main container (foreground layer)
         self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        self.add(self.main_box)
+        overlay.add_overlay(self.main_box)
+
+        # Start bubble animation
+        GLib.timeout_add(50, self._animate_bubbles)  # 20 FPS
         
         # Stack for different views
         self.stack = Gtk.Stack()
@@ -2227,7 +2243,87 @@ class RetroPackagerApp(Gtk.Window):
     def set_status(self, text):
         """Update status bar"""
         self.status_bar.set_text(text)
-    
+
+    def _init_bubbles(self):
+        """Initialize bubble animation state"""
+        import random
+        self.bubbles = []
+        # Create initial bubbles
+        for _ in range(15):
+            self.bubbles.append({
+                'x': random.uniform(0, 1),      # Relative position 0-1
+                'y': random.uniform(0, 1.2),    # Start some below screen
+                'size': random.uniform(20, 80),
+                'speed': random.uniform(0.001, 0.004),
+                'wobble': random.uniform(0, 6.28),
+                'wobble_speed': random.uniform(0.02, 0.05),
+                'opacity': random.uniform(0.1, 0.3),
+            })
+
+    def _animate_bubbles(self):
+        """Update bubble positions each frame"""
+        import random
+        for bubble in self.bubbles:
+            # Float upward
+            bubble['y'] -= bubble['speed']
+            # Wobble side to side
+            bubble['wobble'] += bubble['wobble_speed']
+
+            # Respawn at bottom when off top
+            if bubble['y'] < -0.1:
+                bubble['y'] = 1.1
+                bubble['x'] = random.uniform(0, 1)
+                bubble['size'] = random.uniform(20, 80)
+                bubble['speed'] = random.uniform(0.001, 0.004)
+                bubble['opacity'] = random.uniform(0.1, 0.3)
+
+        # Trigger redraw
+        if hasattr(self, 'bubble_canvas'):
+            self.bubble_canvas.queue_draw()
+        return True  # Keep animation running
+
+    def _draw_bubbles(self, widget, cr):
+        """Draw bubbles on the canvas using Cairo"""
+        import math
+        width = widget.get_allocated_width()
+        height = widget.get_allocated_height()
+
+        for bubble in self.bubbles:
+            # Calculate actual position with wobble
+            x = bubble['x'] * width + math.sin(bubble['wobble']) * 20
+            y = bubble['y'] * height
+            size = bubble['size']
+
+            # Draw bubble with gradient
+            # Outer glow
+            pattern = cairo.RadialGradient(x, y, 0, x, y, size)
+            pattern.add_color_stop_rgba(0, 0.8, 0.95, 1, bubble['opacity'] * 0.5)
+            pattern.add_color_stop_rgba(0.7, 0.6, 0.9, 1, bubble['opacity'] * 0.3)
+            pattern.add_color_stop_rgba(1, 0.5, 0.85, 1, 0)
+            cr.set_source(pattern)
+            cr.arc(x, y, size, 0, 2 * math.pi)
+            cr.fill()
+
+            # Inner highlight (glossy effect)
+            highlight_x = x - size * 0.3
+            highlight_y = y - size * 0.3
+            highlight_size = size * 0.4
+            pattern2 = cairo.RadialGradient(
+                highlight_x, highlight_y, 0,
+                highlight_x, highlight_y, highlight_size
+            )
+            pattern2.add_color_stop_rgba(0, 1, 1, 1, bubble['opacity'] * 0.8)
+            pattern2.add_color_stop_rgba(1, 1, 1, 1, 0)
+            cr.set_source(pattern2)
+            cr.arc(highlight_x, highlight_y, highlight_size, 0, 2 * math.pi)
+            cr.fill()
+
+            # Edge ring
+            cr.set_source_rgba(0.7, 0.92, 1, bubble['opacity'] * 0.4)
+            cr.set_line_width(1.5)
+            cr.arc(x, y, size - 2, 0, 2 * math.pi)
+            cr.stroke()
+
     def _on_key_press(self, widget, event):
         """Handle key press events"""
         # F11 to toggle fullscreen
