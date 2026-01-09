@@ -6,6 +6,8 @@ RetroPackager is a GTK3 Python application for downloading, packaging, and insta
 
 **Primary Use Case**: Personal retro gaming setup on Steam Deck in Gaming Mode.
 
+**Scope**: This is a private application built for personal use by 3 people. It is not intended for public distribution. As such, the hardcoded SteamGridDB API key and other security considerations (auto pip install, no checksum verification, etc.) are acceptable trade-offs for convenience in this trusted environment.
+
 ## Architecture
 
 ### Single-File Monolith
