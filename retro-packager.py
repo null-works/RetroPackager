@@ -7,14 +7,17 @@ Downloads, packages, and installs PS1 and GBA games directly to Steam
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GLib, Gio, Pango, GdkPixbuf
+import cairo
 import subprocess
 import threading
 import shutil
+import shlex
 import os
 import json
 import struct
 import urllib.request
 import urllib.parse
+import urllib.error
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from datetime import datetime
@@ -87,7 +90,8 @@ class DebugLog:
         if DebugLog._ui_callback:
             try:
                 DebugLog._ui_callback(f"  [DEBUG] {message}")
-            except:
+            except Exception:
+                # UI callback may fail if widget is destroyed; ignore safely
                 pass
 
 def debug_log(message):
@@ -654,37 +658,47 @@ RecursiveScan = true
 """
 
 # === FRUTIGER AERO COLOR PALETTE ===
-# Balanced: Dark base for readability, glossy Aero accents
+# Bright sky gradient aesthetic with glossy glass elements
 COLORS = {
-    'bg_dark': '#1a2a3a',            # Dark blue-gray base
-    'bg_card': '#243444',            # Slightly lighter card
+    'sky_top': '#e6f5ff',            # Bright white-cyan sky top
+    'sky_mid': '#7ec8f0',            # Mid-tone sky blue
+    'sky_bottom': '#1e8cdc',         # Vibrant sky blue bottom
+    'glass': 'rgba(255, 255, 255, 0.25)',  # Glass overlay
+    'glass_border': 'rgba(255, 255, 255, 0.5)',  # Glass border
     'accent': '#00a8e8',             # Bright aqua
     'accent_light': '#4dc8ff',       # Light aqua
     'accent_glow': '#00d4ff',        # Glow color
-    'green': '#50c878',              # Success green
-    'text': '#ffffff',               # White text
-    'text_dim': '#94b4c8',           # Dimmed text
+    'green': '#50c878',              # Success green (aurora-like)
+    'text': '#1a3a5a',               # Dark blue text for readability
+    'text_light': '#ffffff',         # White text for dark elements
+    'text_dim': '#4a7090',           # Dimmed blue-gray text
     'success': '#50c878',
     'warning': '#f0a030',
+    'bubble': 'rgba(200, 230, 255, 0.4)',  # Glossy bubble tint
 }
 
 CSS = f"""
-/* === FRUTIGER AERO - BALANCED THEME === */
-/* Dark base for readability, glossy Aero highlights */
+/* === FRUTIGER AERO - BRIGHT SKY THEME === */
+/* Bright sky gradient with glossy glass elements and bubbly aesthetic */
+
+/* Base text colors for all elements */
+* {{
+    color: {COLORS['text']};
+}}
 
 window {{
-    background: linear-gradient(180deg, 
-        #1a2a3a 0%,
-        #162535 50%,
-        #122030 100%);
+    background: linear-gradient(180deg,
+        {COLORS['sky_top']} 0%,
+        {COLORS['sky_mid']} 50%,
+        {COLORS['sky_bottom']} 100%);
 }}
 
 .title {{
     font-size: 28px;
     font-weight: bold;
     color: {COLORS['text']};
-    text-shadow: 0 0 20px rgba(0, 168, 232, 0.5),
-                 0 2px 4px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8),
+                 0 2px 8px rgba(0, 168, 232, 0.3);
 }}
 
 .subtitle {{
@@ -692,51 +706,55 @@ window {{
     color: {COLORS['text_dim']};
 }}
 
-/* Glass card with dark tint */
+/* Glass card - frosted glass effect */
 .card {{
     background: linear-gradient(180deg,
-        rgba(40, 60, 80, 0.9) 0%,
-        rgba(30, 50, 70, 0.95) 100%);
-    border-radius: 12px;
-    border: 1px solid rgba(0, 168, 232, 0.3);
+        rgba(255, 255, 255, 0.25) 0%,
+        rgba(255, 255, 255, 0.12) 100%);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
     padding: 16px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(30, 100, 180, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.5),
+                inset 0 -1px 0 rgba(255, 255, 255, 0.2);
 }}
 
-/* Glossy buttons - Aero style on dark */
+/* Glossy bubble buttons - signature Aero style - semi-transparent */
 .menu-button {{
     background: linear-gradient(180deg,
-        rgba(60, 90, 120, 0.9) 0%,
-        rgba(40, 65, 90, 0.95) 50%,
-        rgba(35, 55, 80, 0.98) 100%);
-    border-radius: 12px;
-    border: 1px solid rgba(0, 168, 232, 0.4);
+        rgba(255, 255, 255, 0.35) 0%,
+        rgba(255, 255, 255, 0.15) 45%,
+        rgba(200, 230, 255, 0.2) 55%,
+        rgba(150, 210, 255, 0.25) 100%);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
     padding: 14px 18px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.15),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 20px rgba(30, 100, 180, 0.15),
+                inset 0 2px 0 rgba(255, 255, 255, 0.5),
+                inset 0 -2px 4px rgba(100, 180, 255, 0.15);
 }}
 
 .menu-button:hover {{
     background: linear-gradient(180deg,
-        rgba(0, 168, 232, 0.3) 0%,
-        rgba(50, 80, 110, 0.95) 30%,
-        rgba(40, 70, 100, 0.98) 100%);
-    border-color: {COLORS['accent']};
-    box-shadow: 0 0 25px rgba(0, 168, 232, 0.3),
-                0 6px 20px rgba(0, 0, 0, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        rgba(255, 255, 255, 0.5) 0%,
+        rgba(255, 255, 255, 0.25) 45%,
+        rgba(180, 230, 255, 0.3) 55%,
+        rgba(130, 200, 255, 0.35) 100%);
+    border-color: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 6px 25px rgba(0, 168, 232, 0.25),
+                inset 0 2px 0 rgba(255, 255, 255, 0.6),
+                inset 0 -2px 6px rgba(100, 180, 255, 0.2);
 }}
 
 .menu-button:focus {{
     background: linear-gradient(180deg,
-        rgba(0, 200, 255, 0.35) 0%,
-        rgba(0, 168, 232, 0.25) 30%,
-        rgba(45, 75, 105, 0.98) 100%);
+        rgba(200, 240, 255, 0.5) 0%,
+        rgba(150, 220, 255, 0.3) 45%,
+        rgba(100, 200, 255, 0.35) 55%,
+        rgba(80, 180, 255, 0.4) 100%);
     border: 2px solid {COLORS['accent_light']};
-    box-shadow: 0 0 30px rgba(0, 168, 232, 0.5),
-                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 30px rgba(0, 168, 232, 0.4),
+                inset 0 2px 0 rgba(255, 255, 255, 0.5);
     outline: none;
 }}
 
@@ -744,6 +762,7 @@ window {{
     font-size: 16px;
     font-weight: bold;
     color: {COLORS['text']};
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
 }}
 
 .menu-button-subtitle {{
@@ -751,205 +770,245 @@ window {{
     color: {COLORS['text_dim']};
 }}
 
-/* Vibrant accent button */
+/* Ensure all labels are visible */
+label {{
+    color: {COLORS['text']};
+}}
+
+/* Button labels need explicit color */
+button label {{
+    color: inherit;
+}}
+
+/* Vibrant glossy accent button - like a shiny orb */
 .accent-button {{
     background: linear-gradient(180deg,
-        {COLORS['accent_light']} 0%,
-        {COLORS['accent']} 50%,
+        #9de8ff 0%,
+        {COLORS['accent_light']} 40%,
+        {COLORS['accent']} 60%,
         #0088c0 100%);
     color: white;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 12px;
     padding: 10px 20px;
     font-weight: bold;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    box-shadow: 0 4px 15px rgba(0, 168, 232, 0.4),
-                inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    text-shadow: 0 1px 2px rgba(0, 60, 120, 0.5);
+    box-shadow: 0 6px 20px rgba(0, 168, 232, 0.5),
+                inset 0 2px 0 rgba(255, 255, 255, 0.5),
+                inset 0 -2px 4px rgba(0, 80, 160, 0.3);
+}}
+
+.accent-button label {{
+    color: white;
 }}
 
 .accent-button:hover {{
     background: linear-gradient(180deg,
-        #6dd8ff 0%,
-        {COLORS['accent_light']} 50%,
+        #c0f0ff 0%,
+        #7dd8ff 40%,
+        {COLORS['accent_light']} 60%,
         {COLORS['accent']} 100%);
-    box-shadow: 0 0 25px rgba(0, 168, 232, 0.6),
-                0 6px 20px rgba(0, 168, 232, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 30px rgba(0, 168, 232, 0.6),
+                inset 0 2px 0 rgba(255, 255, 255, 0.7),
+                inset 0 -2px 6px rgba(0, 80, 160, 0.3);
 }}
 
 .accent-button:focus {{
     background: linear-gradient(180deg,
-        #7de0ff 0%,
-        #5dd0ff 50%,
+        #d0f5ff 0%,
+        #90e0ff 40%,
+        #60d0ff 60%,
         {COLORS['accent']} 100%);
     border: 2px solid white;
-    box-shadow: 0 0 30px rgba(0, 168, 232, 0.7);
+    box-shadow: 0 0 35px rgba(0, 200, 255, 0.7),
+                inset 0 2px 0 rgba(255, 255, 255, 0.8);
     outline: none;
 }}
 
-/* Secondary button */
+/* Secondary glass button - more transparent */
 .flat-button {{
     background: linear-gradient(180deg,
-        rgba(60, 90, 120, 0.8) 0%,
-        rgba(45, 70, 95, 0.9) 100%);
+        rgba(255, 255, 255, 0.3) 0%,
+        rgba(255, 255, 255, 0.15) 45%,
+        rgba(200, 230, 255, 0.2) 100%);
     color: {COLORS['text']};
-    border: 1px solid rgba(0, 168, 232, 0.4);
-    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 10px;
     padding: 10px 20px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    box-shadow: 0 3px 12px rgba(30, 100, 180, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }}
 
 .flat-button:hover {{
     background: linear-gradient(180deg,
-        rgba(0, 168, 232, 0.25) 0%,
-        rgba(55, 85, 115, 0.9) 100%);
-    border-color: {COLORS['accent']};
-    box-shadow: 0 0 15px rgba(0, 168, 232, 0.3);
+        rgba(255, 255, 255, 0.45) 0%,
+        rgba(255, 255, 255, 0.25) 45%,
+        rgba(180, 220, 255, 0.3) 100%);
+    border-color: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 5px 18px rgba(0, 168, 232, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }}
 
 .flat-button:focus {{
     background: linear-gradient(180deg,
-        rgba(0, 200, 255, 0.3) 0%,
-        rgba(60, 90, 120, 0.9) 100%);
+        rgba(200, 240, 255, 0.4) 0%,
+        rgba(160, 220, 255, 0.25) 100%);
     border: 2px solid {COLORS['accent']};
-    box-shadow: 0 0 20px rgba(0, 168, 232, 0.4);
+    box-shadow: 0 0 20px rgba(0, 168, 232, 0.3);
     outline: none;
 }}
 
-/* Text input */
+.flat-button label {{
+    color: {COLORS['text']};
+}}
+
+/* Text input - frosted glass */
 .entry {{
     background: linear-gradient(180deg,
-        rgba(20, 35, 50, 0.95) 0%,
-        rgba(25, 40, 55, 0.98) 100%);
+        rgba(255, 255, 255, 0.85) 0%,
+        rgba(255, 255, 255, 0.7) 100%);
     color: {COLORS['text']};
-    border: 1px solid rgba(0, 168, 232, 0.3);
-    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 10px;
     padding: 10px;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow: inset 0 2px 4px rgba(30, 100, 180, 0.15),
+                0 2px 8px rgba(30, 100, 180, 0.1);
 }}
 
 .entry:focus {{
     border: 2px solid {COLORS['accent']};
     box-shadow: 0 0 15px rgba(0, 168, 232, 0.3),
-                inset 0 2px 4px rgba(0, 0, 0, 0.3);
+                inset 0 2px 4px rgba(30, 100, 180, 0.1);
 }}
 
-/* Status bar */
+/* Status bar - aurora-like gradient */
 .status-bar {{
     background: linear-gradient(90deg,
-        rgba(0, 168, 232, 0.2) 0%,
-        rgba(80, 200, 120, 0.15) 50%,
-        transparent 100%);
+        rgba(100, 255, 180, 0.3) 0%,
+        rgba(80, 220, 255, 0.25) 50%,
+        rgba(150, 200, 255, 0.2) 100%);
     padding: 8px 14px;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 12px;
     color: {COLORS['text']};
-    border-left: 3px solid {COLORS['accent']};
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }}
 
-/* Progress bar - glossy gradient */
+/* Progress bar - glossy orb-like gradient */
 .progress {{
-    background: rgba(20, 35, 50, 0.8);
-    border-radius: 10px;
-    min-height: 22px;
-    border: 1px solid rgba(0, 168, 232, 0.3);
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 12px;
+    min-height: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: inset 0 2px 4px rgba(30, 100, 180, 0.15);
 }}
 
 .progress trough {{
-    background: rgba(20, 35, 50, 0.8);
-    border-radius: 10px;
-    min-height: 22px;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 12px;
+    min-height: 24px;
 }}
 
 .progress progress {{
-    background: linear-gradient(90deg,
-        {COLORS['accent']} 0%,
-        {COLORS['accent_light']} 50%,
-        {COLORS['accent_glow']} 100%);
-    border-radius: 10px;
-    min-height: 22px;
-    box-shadow: 0 0 15px rgba(0, 168, 232, 0.5),
-                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    background: linear-gradient(180deg,
+        #9de8ff 0%,
+        {COLORS['accent_light']} 30%,
+        {COLORS['accent']} 70%,
+        #0088c0 100%);
+    border-radius: 12px;
+    min-height: 24px;
+    box-shadow: 0 0 20px rgba(0, 168, 232, 0.5),
+                inset 0 2px 0 rgba(255, 255, 255, 0.5),
+                inset 0 -2px 4px rgba(0, 80, 160, 0.3);
 }}
 
 .progress text {{
-    color: {COLORS['text']};
+    color: white;
     font-weight: bold;
     font-size: 11px;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 1px 2px rgba(0, 60, 120, 0.5);
 }}
 
-/* Scrollbar */
+/* Scrollbar - glossy bubble style */
 scrolledwindow {{
     background: transparent;
 }}
 
 scrollbar {{
-    background: transparent;
+    background: rgba(255, 255, 255, 0.2);
 }}
 
 scrollbar slider {{
     background: linear-gradient(90deg,
-        rgba(0, 168, 232, 0.4) 0%,
-        rgba(0, 200, 255, 0.5) 50%,
-        rgba(0, 168, 232, 0.4) 100%);
-    border-radius: 6px;
-    min-width: 8px;
+        rgba(150, 220, 255, 0.7) 0%,
+        rgba(200, 240, 255, 0.8) 50%,
+        rgba(150, 220, 255, 0.7) 100%);
+    border-radius: 8px;
+    min-width: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
 }}
 
 scrollbar slider:hover {{
     background: linear-gradient(90deg,
-        {COLORS['accent']} 0%,
+        {COLORS['accent_light']} 0%,
+        #a0e8ff 50%,
         {COLORS['accent_light']} 100%);
-    box-shadow: 0 0 8px rgba(0, 168, 232, 0.5);
+    box-shadow: 0 0 10px rgba(0, 168, 232, 0.5);
 }}
 
-/* Game cards */
+/* Game cards - glossy glass tiles */
 .game-card {{
     background: linear-gradient(180deg,
-        rgba(45, 65, 85, 0.9) 0%,
-        rgba(35, 55, 75, 0.95) 100%);
-    border-radius: 10px;
+        rgba(255, 255, 255, 0.3) 0%,
+        rgba(255, 255, 255, 0.15) 45%,
+        rgba(200, 230, 255, 0.2) 100%);
+    border-radius: 14px;
     padding: 4px;
-    border: 2px solid transparent;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 6px 20px rgba(30, 100, 180, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }}
 
 .game-card:hover {{
     background: linear-gradient(180deg,
-        rgba(0, 168, 232, 0.2) 0%,
-        rgba(45, 70, 95, 0.95) 100%);
-    border-color: rgba(0, 168, 232, 0.4);
-    box-shadow: 0 0 15px rgba(0, 168, 232, 0.2),
-                0 6px 15px rgba(0, 0, 0, 0.3);
+        rgba(255, 255, 255, 0.45) 0%,
+        rgba(255, 255, 255, 0.25) 45%,
+        rgba(180, 220, 255, 0.3) 100%);
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 8px 25px rgba(0, 168, 232, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }}
 
 flowboxchild:selected .game-card {{
     background: linear-gradient(180deg,
-        rgba(0, 168, 232, 0.4) 0%,
-        rgba(0, 140, 200, 0.3) 100%);
-    border-color: {COLORS['accent']};
+        rgba(150, 220, 255, 0.4) 0%,
+        rgba(100, 200, 255, 0.3) 100%);
+    border-color: {COLORS['accent_light']};
 }}
 
 flowboxchild:focus .game-card {{
     border-color: {COLORS['accent']};
-    box-shadow: 0 0 25px rgba(0, 168, 232, 0.5);
+    box-shadow: 0 0 25px rgba(0, 168, 232, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }}
 
 flowboxchild:selected:focus .game-card {{
     background: linear-gradient(180deg,
-        rgba(0, 200, 255, 0.4) 0%,
-        rgba(0, 168, 232, 0.35) 100%);
+        rgba(130, 210, 255, 0.5) 0%,
+        rgba(80, 180, 255, 0.4) 100%);
     border-color: white;
-    box-shadow: 0 0 30px rgba(0, 168, 232, 0.6);
+    box-shadow: 0 0 35px rgba(0, 200, 255, 0.5),
+                inset 0 2px 0 rgba(255, 255, 255, 0.5);
 }}
 
 .game-title {{
     font-size: 13px;
     font-weight: bold;
     color: white;
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+    background: linear-gradient(transparent, rgba(30, 80, 140, 0.85));
     padding: 40px 8px 8px 8px;
+    text-shadow: 0 1px 3px rgba(0, 40, 80, 0.6);
 }}
 
 /* Packaging view */
@@ -957,18 +1016,20 @@ flowboxchild:selected:focus .game-card {{
     font-size: 22px;
     font-weight: bold;
     color: {COLORS['text']};
-    text-shadow: 0 0 10px rgba(0, 168, 232, 0.3);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7),
+                 0 2px 8px rgba(0, 168, 232, 0.2);
 }}
 
 .packaging-step-done {{
-    color: {COLORS['green']};
+    color: #2a9050;
     font-weight: bold;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }}
 
 .packaging-step-active {{
-    color: {COLORS['accent_light']};
+    color: #0080c0;
     font-weight: bold;
-    text-shadow: 0 0 10px rgba(0, 168, 232, 0.5);
+    text-shadow: 0 0 10px rgba(0, 168, 232, 0.4);
 }}
 
 .packaging-step-pending {{
@@ -976,59 +1037,348 @@ flowboxchild:selected:focus .game-card {{
 }}
 
 .log-view {{
-    background: rgba(15, 25, 35, 0.95);
-    border-radius: 8px;
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.85) 0%,
+        rgba(255, 255, 255, 0.7) 100%);
+    border-radius: 10px;
     padding: 12px;
     font-family: monospace;
     font-size: 12px;
     color: {COLORS['text']};
-    border: 1px solid rgba(0, 168, 232, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: inset 0 2px 4px rgba(30, 100, 180, 0.1);
 }}
 
 .success-text {{
-    color: {COLORS['green']};
+    color: #2a9050;
     font-size: 18px;
     font-weight: bold;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }}
 
 .warning-text {{
-    color: {COLORS['warning']};
+    color: #c07020;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
 }}
 
-/* System toggle buttons */
+/* System toggle buttons - glossy pills */
 .system-button {{
     background: linear-gradient(180deg,
-        rgba(60, 90, 120, 0.8) 0%,
-        rgba(45, 70, 95, 0.9) 100%);
-    border: 1px solid rgba(0, 168, 232, 0.3);
-    border-radius: 20px;
+        rgba(255, 255, 255, 0.6) 0%,
+        rgba(255, 255, 255, 0.35) 45%,
+        rgba(200, 230, 255, 0.4) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 22px;
     padding: 8px 18px;
     font-size: 14px;
     font-weight: bold;
     color: {COLORS['text_dim']};
+    box-shadow: 0 3px 10px rgba(30, 100, 180, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }}
 
 .system-button:checked {{
     background: linear-gradient(180deg,
-        {COLORS['accent_light']} 0%,
-        {COLORS['accent']} 50%,
+        #9de8ff 0%,
+        {COLORS['accent_light']} 40%,
+        {COLORS['accent']} 60%,
         #0088c0 100%);
-    border-color: {COLORS['accent']};
+    border-color: rgba(255, 255, 255, 0.5);
     color: white;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    box-shadow: 0 0 20px rgba(0, 168, 232, 0.5),
-                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    text-shadow: 0 1px 2px rgba(0, 60, 120, 0.5);
+    box-shadow: 0 0 25px rgba(0, 168, 232, 0.5),
+                inset 0 2px 0 rgba(255, 255, 255, 0.5),
+                inset 0 -2px 4px rgba(0, 80, 160, 0.3);
 }}
 
 .system-button:hover {{
-    border-color: rgba(0, 168, 232, 0.6);
-    box-shadow: 0 0 10px rgba(0, 168, 232, 0.3);
+    border-color: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 5px 15px rgba(0, 168, 232, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }}
 
 .system-button:focus {{
     border: 2px solid {COLORS['accent']};
-    box-shadow: 0 0 15px rgba(0, 168, 232, 0.4);
+    box-shadow: 0 0 20px rgba(0, 168, 232, 0.4);
     outline: none;
+}}
+
+.system-button label {{
+    color: {COLORS['text_dim']};
+}}
+
+.system-button:checked label {{
+    color: white;
+}}
+
+/* Exit button - danger red with glossy orb style */
+.exit-button {{
+    background: linear-gradient(180deg,
+        #ff9999 0%,
+        #e06060 40%,
+        #c04040 60%,
+        #a03030 100%);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-weight: bold;
+    text-shadow: 0 1px 2px rgba(80, 0, 0, 0.5);
+    box-shadow: 0 4px 15px rgba(180, 60, 60, 0.4),
+                inset 0 2px 0 rgba(255, 255, 255, 0.4),
+                inset 0 -2px 4px rgba(100, 0, 0, 0.3);
+}}
+
+.exit-button:hover {{
+    background: linear-gradient(180deg,
+        #ffb0b0 0%,
+        #e87070 40%,
+        #d05050 60%,
+        #b04040 100%);
+    box-shadow: 0 6px 20px rgba(180, 60, 60, 0.5),
+                inset 0 2px 0 rgba(255, 255, 255, 0.5);
+}}
+
+.exit-button:focus {{
+    border: 2px solid white;
+    box-shadow: 0 0 25px rgba(200, 80, 80, 0.6);
+    outline: none;
+}}
+
+.exit-button label {{
+    color: white;
+}}
+
+/* Dialog styling - fullscreen themed dialogs */
+dialog {{
+    background: linear-gradient(180deg,
+        {COLORS['sky_top']} 0%,
+        {COLORS['sky_mid']} 50%,
+        {COLORS['sky_bottom']} 100%);
+}}
+
+.dialog-content {{
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.3) 0%,
+        rgba(255, 255, 255, 0.15) 100%);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    padding: 24px;
+    margin: 20px;
+    box-shadow: 0 8px 40px rgba(30, 100, 180, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}}
+
+.dialog-title {{
+    font-size: 24px;
+    font-weight: bold;
+    color: {COLORS['text']};
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+}}
+
+.dialog-message {{
+    font-size: 14px;
+    color: {COLORS['text']};
+}}
+
+.dialog-secondary {{
+    font-size: 12px;
+    color: {COLORS['text_dim']};
+}}
+
+/* Warning dialog accent */
+.dialog-warning {{
+    border-left: 4px solid {COLORS['warning']};
+}}
+
+/* Listbox styling */
+list, listbox {{
+    background: transparent;
+}}
+
+list row, listbox row {{
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.5) 0%,
+        rgba(255, 255, 255, 0.3) 100%);
+    border-radius: 10px;
+    margin: 4px 0;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}}
+
+list row:hover, listbox row:hover {{
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.7) 0%,
+        rgba(255, 255, 255, 0.4) 100%);
+    border-color: rgba(255, 255, 255, 0.8);
+}}
+
+list row:selected, listbox row:selected {{
+    background: linear-gradient(180deg,
+        rgba(150, 220, 255, 0.6) 0%,
+        rgba(100, 200, 255, 0.5) 100%);
+    border-color: {COLORS['accent_light']};
+}}
+
+/* Text view styling */
+textview {{
+    background: rgba(255, 255, 255, 0.8);
+    color: {COLORS['text']};
+}}
+
+textview text {{
+    background: transparent;
+    color: {COLORS['text']};
+}}
+
+/* Combobox / Dropdown styling */
+combobox {{
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.85) 0%,
+        rgba(255, 255, 255, 0.7) 100%);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+}}
+
+combobox button {{
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.7) 0%,
+        rgba(255, 255, 255, 0.5) 100%);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    padding: 8px 12px;
+}}
+
+combobox button:hover {{
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.85) 0%,
+        rgba(255, 255, 255, 0.6) 100%);
+}}
+
+combobox cellview {{
+    color: {COLORS['text']};
+}}
+
+combobox arrow {{
+    color: {COLORS['text']};
+}}
+
+/* Dropdown/Popup menu styling */
+popover, popover.background {{
+    background: linear-gradient(180deg,
+        rgba(230, 245, 255, 0.98) 0%,
+        rgba(200, 230, 255, 0.95) 100%);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 32px rgba(30, 100, 180, 0.3);
+}}
+
+popover contents {{
+    background: transparent;
+}}
+
+popover modelbutton {{
+    background: transparent;
+    padding: 8px 16px;
+    border-radius: 8px;
+    color: {COLORS['text']};
+}}
+
+popover modelbutton:hover {{
+    background: linear-gradient(180deg,
+        rgba(150, 220, 255, 0.5) 0%,
+        rgba(100, 200, 255, 0.4) 100%);
+}}
+
+/* Menu styling */
+menu {{
+    background: linear-gradient(180deg,
+        rgba(230, 245, 255, 0.98) 0%,
+        rgba(200, 230, 255, 0.95) 100%);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 32px rgba(30, 100, 180, 0.3);
+    padding: 8px;
+}}
+
+menu menuitem {{
+    background: transparent;
+    padding: 8px 16px;
+    border-radius: 8px;
+    color: {COLORS['text']};
+}}
+
+menu menuitem:hover {{
+    background: linear-gradient(180deg,
+        rgba(150, 220, 255, 0.5) 0%,
+        rgba(100, 200, 255, 0.4) 100%);
+}}
+
+menu menuitem label {{
+    color: {COLORS['text']};
+}}
+
+/* File chooser dialog styling */
+filechooser {{
+    background: linear-gradient(180deg,
+        {COLORS['sky_top']} 0%,
+        {COLORS['sky_mid']} 50%,
+        {COLORS['sky_bottom']} 100%);
+}}
+
+filechooser .view {{
+    background: rgba(255, 255, 255, 0.7);
+    color: {COLORS['text']};
+}}
+
+filechooser list {{
+    background: rgba(255, 255, 255, 0.5);
+}}
+
+filechooser row {{
+    background: transparent;
+    color: {COLORS['text']};
+}}
+
+filechooser row:selected {{
+    background: linear-gradient(180deg,
+        rgba(150, 220, 255, 0.6) 0%,
+        rgba(100, 200, 255, 0.5) 100%);
+}}
+
+/* Placesidebar (file chooser sidebar) */
+placessidebar {{
+    background: rgba(255, 255, 255, 0.4);
+}}
+
+placessidebar row {{
+    background: transparent;
+    color: {COLORS['text']};
+}}
+
+placessidebar row:selected {{
+    background: linear-gradient(180deg,
+        rgba(150, 220, 255, 0.6) 0%,
+        rgba(100, 200, 255, 0.5) 100%);
+}}
+
+/* Pathbar in file chooser */
+pathbar button {{
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.6) 0%,
+        rgba(255, 255, 255, 0.4) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 6px;
+    color: {COLORS['text']};
+}}
+
+pathbar button:hover {{
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.8) 0%,
+        rgba(255, 255, 255, 0.5) 100%);
+}}
+
+pathbar button label {{
+    color: {COLORS['text']};
 }}
 """
 
@@ -1200,8 +1550,17 @@ class SteamShortcuts:
         shortcuts_path = SteamShortcuts.get_shortcuts_path()
         if not shortcuts_path:
             return False
-        
+
         shortcuts_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Create backup before modifying
+        if shortcuts_path.exists():
+            backup_path = shortcuts_path.with_suffix('.vdf.backup')
+            try:
+                shutil.copy2(shortcuts_path, backup_path)
+                debug_log(f"Created backup: {backup_path}")
+            except OSError as e:
+                debug_log(f"Warning: Could not create backup: {e}")
         
         # Build binary VDF
         data = b'\x00shortcuts\x00'
@@ -1327,6 +1686,149 @@ class SteamShortcuts:
         if SteamShortcuts.write_shortcuts(shortcuts):
             return app_id  # Return unsigned app_id for artwork filenames
         return None
+
+    @staticmethod
+    def remove_shortcut(name=None, exe_path=None):
+        """Remove a non-Steam game shortcut by name or exe path
+
+        Returns True if shortcut was found and removed, False otherwise
+        """
+        if not name and not exe_path:
+            return False
+
+        shortcuts = SteamShortcuts.read_shortcuts()
+        if not shortcuts:
+            return False
+
+        # Find and remove matching shortcut
+        key_to_remove = None
+        removed_shortcut = None
+        for key, shortcut in shortcuts.items():
+            if name and shortcut.get('AppName') == name:
+                key_to_remove = key
+                removed_shortcut = shortcut
+                break
+            if exe_path:
+                exe_str = f'"{exe_path}"'
+                if shortcut.get('Exe') == exe_str:
+                    key_to_remove = key
+                    removed_shortcut = shortcut
+                    break
+
+        if key_to_remove is None:
+            debug_log(f"Shortcut not found: name={name}, exe={exe_path}")
+            return False
+
+        # Remove the shortcut
+        del shortcuts[key_to_remove]
+        debug_log(f"Removing shortcut: {removed_shortcut.get('AppName', 'unknown')}")
+
+        # Reindex remaining shortcuts (Steam expects sequential indices)
+        reindexed = {}
+        for i, (_, shortcut) in enumerate(sorted(shortcuts.items(), key=lambda x: int(x[0]))):
+            reindexed[str(i)] = shortcut
+
+        # Remove artwork files
+        if removed_shortcut:
+            app_name = removed_shortcut.get('AppName', '')
+            exe = removed_shortcut.get('Exe', '')
+            if app_name and exe:
+                app_id = SteamShortcuts.generate_app_id(exe, app_name)
+                SteamShortcuts.remove_artwork(app_id)
+
+        return SteamShortcuts.write_shortcuts(reindexed)
+
+    @staticmethod
+    def remove_artwork(app_id):
+        """Remove all artwork files for a given app_id"""
+        grid_path = SteamShortcuts.get_grid_path()
+        if not grid_path:
+            return
+
+        # Steam artwork file patterns
+        artwork_files = [
+            f"{app_id}p.png",      # Portrait cover
+            f"{app_id}.png",       # Horizontal grid
+            f"{app_id}_hero.png",  # Hero banner
+            f"{app_id}_logo.png",  # Logo
+            f"{app_id}_icon.png",  # Icon (if exists)
+        ]
+
+        for filename in artwork_files:
+            filepath = grid_path / filename
+            if filepath.exists():
+                try:
+                    filepath.unlink()
+                    debug_log(f"Removed artwork: {filename}")
+                except OSError as e:
+                    debug_log(f"Failed to remove artwork {filename}: {e}")
+
+    @staticmethod
+    def get_all_shortcuts():
+        """Get list of all shortcuts with their details
+
+        Returns list of dicts with 'name', 'exe', 'app_id' keys
+        """
+        shortcuts = SteamShortcuts.read_shortcuts()
+        result = []
+        for key, shortcut in shortcuts.items():
+            name = shortcut.get('AppName', '')
+            exe = shortcut.get('Exe', '')
+            if name and exe:
+                app_id = SteamShortcuts.generate_app_id(exe, name)
+                result.append({
+                    'name': name,
+                    'exe': exe,
+                    'app_id': app_id,
+                    'tags': list(shortcut.get('tags', {}).values()) if isinstance(shortcut.get('tags'), dict) else []
+                })
+        return result
+
+    @staticmethod
+    def remove_shortcuts_by_tags(tags):
+        """Remove all shortcuts that have any of the specified tags
+
+        Returns number of shortcuts removed
+        """
+        shortcuts = SteamShortcuts.read_shortcuts()
+        if not shortcuts:
+            return 0
+
+        tags_set = set(t.lower() for t in tags)
+        keys_to_remove = []
+
+        for key, shortcut in shortcuts.items():
+            shortcut_tags = shortcut.get('tags', {})
+            if isinstance(shortcut_tags, dict):
+                shortcut_tags_lower = set(t.lower() for t in shortcut_tags.values())
+            else:
+                shortcut_tags_lower = set()
+
+            if shortcut_tags_lower & tags_set:  # Intersection
+                keys_to_remove.append(key)
+                # Remove artwork
+                name = shortcut.get('AppName', '')
+                exe = shortcut.get('Exe', '')
+                if name and exe:
+                    app_id = SteamShortcuts.generate_app_id(exe, name)
+                    SteamShortcuts.remove_artwork(app_id)
+                debug_log(f"Marking for removal: {name}")
+
+        if not keys_to_remove:
+            return 0
+
+        # Remove marked shortcuts
+        for key in keys_to_remove:
+            del shortcuts[key]
+
+        # Reindex
+        reindexed = {}
+        for i, (_, shortcut) in enumerate(sorted(shortcuts.items(), key=lambda x: int(x[0]))):
+            reindexed[str(i)] = shortcut
+
+        if SteamShortcuts.write_shortcuts(reindexed):
+            return len(keys_to_remove)
+        return 0
     
     @staticmethod
     def get_grid_path():
@@ -1432,7 +1934,6 @@ class SteamGridDB:
                 debug_log(f"SteamGridDB: Unexpected status {response.status_code}")
         except Exception as e:
             debug_log(f"SteamGridDB search error: {e}")
-        return None
         return None
     
     @staticmethod
@@ -1647,10 +2148,10 @@ class SteamGridDB:
 class RetroPackagerApp(Gtk.Window):
     def __init__(self):
         super().__init__(title="RetroPackager")
-        
+
         # Current system (ps1 or gba)
         self.current_system = "ps1"
-        
+
         # Get screen dimensions
         display = Gdk.Display.get_default()
         monitor = display.get_primary_monitor() or display.get_monitor(0)
@@ -1659,7 +2160,7 @@ class RetroPackagerApp(Gtk.Window):
             scale = monitor.get_scale_factor()
             screen_width = geometry.width
             screen_height = geometry.height
-            
+
             # For handhelds (ROG Ally 1920x1080, Steam Deck 1280x800, etc.)
             # Maximize to fill the screen
             if screen_width <= 1920 and screen_height <= 1200:
@@ -1670,13 +2171,13 @@ class RetroPackagerApp(Gtk.Window):
                 self.set_default_size(1200, 800)
         else:
             self.set_default_size(1200, 800)
-        
+
         self.set_position(Gtk.WindowPosition.CENTER)
         self.set_resizable(True)
-        
+
         # Connect to key press for fullscreen toggle
         self.connect('key-press-event', self._on_key_press)
-        
+
         # Apply CSS
         css_provider = Gtk.CssProvider()
         css_provider.load_from_data(CSS.encode())
@@ -1685,10 +2186,25 @@ class RetroPackagerApp(Gtk.Window):
             css_provider,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
-        
-        # Main container
+
+        # Initialize bubble animation
+        self._init_bubbles()
+
+        # Use overlay for bubble background
+        overlay = Gtk.Overlay()
+        self.add(overlay)
+
+        # Bubble drawing area (background layer)
+        self.bubble_canvas = Gtk.DrawingArea()
+        self.bubble_canvas.connect('draw', self._draw_bubbles)
+        overlay.add(self.bubble_canvas)
+
+        # Main container (foreground layer)
         self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        self.add(self.main_box)
+        overlay.add_overlay(self.main_box)
+
+        # Start bubble animation
+        GLib.timeout_add(50, self._animate_bubbles)  # 20 FPS
         
         # Stack for different views
         self.stack = Gtk.Stack()
@@ -1727,7 +2243,87 @@ class RetroPackagerApp(Gtk.Window):
     def set_status(self, text):
         """Update status bar"""
         self.status_bar.set_text(text)
-    
+
+    def _init_bubbles(self):
+        """Initialize bubble animation state"""
+        import random
+        self.bubbles = []
+        # Create initial bubbles
+        for _ in range(15):
+            self.bubbles.append({
+                'x': random.uniform(0, 1),      # Relative position 0-1
+                'y': random.uniform(0, 1.2),    # Start some below screen
+                'size': random.uniform(20, 80),
+                'speed': random.uniform(0.001, 0.004),
+                'wobble': random.uniform(0, 6.28),
+                'wobble_speed': random.uniform(0.02, 0.05),
+                'opacity': random.uniform(0.4, 0.7),
+            })
+
+    def _animate_bubbles(self):
+        """Update bubble positions each frame"""
+        import random
+        for bubble in self.bubbles:
+            # Float upward
+            bubble['y'] -= bubble['speed']
+            # Wobble side to side
+            bubble['wobble'] += bubble['wobble_speed']
+
+            # Respawn at bottom when off top
+            if bubble['y'] < -0.1:
+                bubble['y'] = 1.1
+                bubble['x'] = random.uniform(0, 1)
+                bubble['size'] = random.uniform(20, 80)
+                bubble['speed'] = random.uniform(0.001, 0.004)
+                bubble['opacity'] = random.uniform(0.4, 0.7)
+
+        # Trigger redraw
+        if hasattr(self, 'bubble_canvas'):
+            self.bubble_canvas.queue_draw()
+        return True  # Keep animation running
+
+    def _draw_bubbles(self, widget, cr):
+        """Draw bubbles on the canvas using Cairo"""
+        import math
+        width = widget.get_allocated_width()
+        height = widget.get_allocated_height()
+
+        for bubble in self.bubbles:
+            # Calculate actual position with wobble
+            x = bubble['x'] * width + math.sin(bubble['wobble']) * 20
+            y = bubble['y'] * height
+            size = bubble['size']
+
+            # Draw bubble with gradient
+            # Outer glow
+            pattern = cairo.RadialGradient(x, y, 0, x, y, size)
+            pattern.add_color_stop_rgba(0, 0.8, 0.95, 1, bubble['opacity'] * 0.85)
+            pattern.add_color_stop_rgba(0.7, 0.6, 0.9, 1, bubble['opacity'] * 0.6)
+            pattern.add_color_stop_rgba(1, 0.5, 0.85, 1, 0)
+            cr.set_source(pattern)
+            cr.arc(x, y, size, 0, 2 * math.pi)
+            cr.fill()
+
+            # Inner highlight (glossy effect)
+            highlight_x = x - size * 0.3
+            highlight_y = y - size * 0.3
+            highlight_size = size * 0.4
+            pattern2 = cairo.RadialGradient(
+                highlight_x, highlight_y, 0,
+                highlight_x, highlight_y, highlight_size
+            )
+            pattern2.add_color_stop_rgba(0, 1, 1, 1, bubble['opacity'] * 1.0)
+            pattern2.add_color_stop_rgba(1, 1, 1, 1, 0)
+            cr.set_source(pattern2)
+            cr.arc(highlight_x, highlight_y, highlight_size, 0, 2 * math.pi)
+            cr.fill()
+
+            # Edge ring
+            cr.set_source_rgba(0.7, 0.92, 1, bubble['opacity'] * 0.6)
+            cr.set_line_width(1.5)
+            cr.arc(x, y, size - 2, 0, 2 * math.pi)
+            cr.stroke()
+
     def _on_key_press(self, widget, event):
         """Handle key press events"""
         # F11 to toggle fullscreen
@@ -1834,17 +2430,32 @@ class RetroPackagerApp(Gtk.Window):
         
         # Track buttons for gamepad navigation
         self.main_menu_buttons = []
-        
-        # Header
+
+        # Header row with title and exit button
+        header_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+
+        # Title and subtitle on left
+        title_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.title_label = Gtk.Label(label="RetroPackager")
         self.title_label.get_style_context().add_class('title')
         self.title_label.set_halign(Gtk.Align.START)
-        box.pack_start(self.title_label, False, False, 0)
-        
+        title_box.pack_start(self.title_label, False, False, 0)
+
         subtitle = Gtk.Label(label="Download • Package • Play")
         subtitle.get_style_context().add_class('subtitle')
         subtitle.set_halign(Gtk.Align.START)
-        box.pack_start(subtitle, False, False, 0)
+        title_box.pack_start(subtitle, False, False, 0)
+
+        header_row.pack_start(title_box, True, True, 0)
+
+        # Exit button on right - glossy red Aero style
+        exit_btn = Gtk.Button(label="✕ EXIT")
+        exit_btn.get_style_context().add_class('exit-button')
+        exit_btn.connect('clicked', lambda w: Gtk.main_quit())
+        exit_btn.set_valign(Gtk.Align.START)
+        header_row.pack_end(exit_btn, False, False, 0)
+
+        box.pack_start(header_row, False, False, 0)
         
         # System toggle buttons
         system_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
@@ -2277,30 +2888,59 @@ class RetroPackagerApp(Gtk.Window):
         game_name = re.sub(r'\s*\([^)]*\)', '', game_name)
         game_name = re.sub(r'\s*\[[^\]]*\]', '', game_name)
         game_name = game_name.strip()
-        
-        # Ask for name
+
+        # Ask for name - fullscreen themed dialog
         name_dialog = Gtk.Dialog(title="Game Name", parent=self, flags=Gtk.DialogFlags.MODAL)
-        name_dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, "Install", Gtk.ResponseType.OK)
-        
-        content = name_dialog.get_content_area()
-        content.set_spacing(12)
-        content.set_margin_start(20)
-        content.set_margin_end(20)
-        content.set_margin_top(20)
-        content.set_margin_bottom(20)
-        
-        label = Gtk.Label(label="Enter name for this game:")
-        label.set_halign(Gtk.Align.START)
-        content.pack_start(label, False, False, 0)
-        
+        name_dialog.fullscreen()
+
+        main_box = name_dialog.get_content_area()
+        main_box.set_valign(Gtk.Align.CENTER)
+        main_box.set_halign(Gtk.Align.CENTER)
+
+        # Content card
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        content.get_style_context().add_class('dialog-content')
+        content.set_size_request(500, -1)
+
+        # Title
+        title_label = Gtk.Label(label="Enter Game Name")
+        title_label.get_style_context().add_class('dialog-title')
+        title_label.set_halign(Gtk.Align.START)
+        content.pack_start(title_label, False, False, 0)
+
+        # Subtitle
+        sub_label = Gtk.Label(label=f"File: {rom_path.name}")
+        sub_label.get_style_context().add_class('dialog-secondary')
+        sub_label.set_halign(Gtk.Align.START)
+        sub_label.set_ellipsize(Pango.EllipsizeMode.MIDDLE)
+        content.pack_start(sub_label, False, False, 0)
+
+        # Entry
         name_entry = Gtk.Entry()
         name_entry.set_text(game_name)
         name_entry.get_style_context().add_class('entry')
         content.pack_start(name_entry, False, False, 0)
-        
+
+        # Buttons
+        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        btn_box.set_halign(Gtk.Align.END)
+
+        cancel_btn = Gtk.Button(label="Cancel")
+        cancel_btn.get_style_context().add_class('flat-button')
+        cancel_btn.connect('clicked', lambda w: name_dialog.response(Gtk.ResponseType.CANCEL))
+        btn_box.pack_start(cancel_btn, False, False, 0)
+
+        install_btn = Gtk.Button(label="Install")
+        install_btn.get_style_context().add_class('accent-button')
+        install_btn.connect('clicked', lambda w: name_dialog.response(Gtk.ResponseType.OK))
+        btn_box.pack_start(install_btn, False, False, 0)
+
+        content.pack_start(btn_box, False, False, 0)
+
+        main_box.pack_start(content, False, False, 0)
         name_dialog.show_all()
         response = name_dialog.run()
-        
+
         if response == Gtk.ResponseType.OK:
             game_name = name_entry.get_text().strip()
             name_dialog.destroy()
@@ -2310,45 +2950,55 @@ class RetroPackagerApp(Gtk.Window):
             name_dialog.destroy()
     
     def on_view_games(self):
-        """Show installed games with uninstall option"""
+        """Show installed games with uninstall option - fullscreen dialog"""
         dialog = Gtk.Dialog(
             title="Installed Games",
             parent=self,
             flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT
         )
-        dialog.add_buttons(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
-        dialog.set_default_size(500, 400)
-        
-        content = dialog.get_content_area()
-        content.set_spacing(12)
-        content.set_margin_start(16)
-        content.set_margin_end(16)
-        content.set_margin_top(16)
-        content.set_margin_bottom(16)
-        
-        # Header
-        header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        
-        title = Gtk.Label(label="Installed PS1 Games")
-        title.get_style_context().add_class('menu-button-title')
-        title.set_halign(Gtk.Align.START)
-        header_box.pack_start(title, True, True, 0)
-        
+        dialog.fullscreen()
+
+        main_box = dialog.get_content_area()
+        main_box.set_spacing(0)
+
+        # Header bar with back button
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        header.set_margin_start(20)
+        header.set_margin_end(20)
+        header.set_margin_top(20)
+        header.set_margin_bottom(10)
+
+        back_btn = Gtk.Button(label="← Back")
+        back_btn.get_style_context().add_class('flat-button')
+        back_btn.connect('clicked', lambda w: dialog.destroy())
+        header.pack_start(back_btn, False, False, 0)
+
+        title = Gtk.Label(label="Installed Games")
+        title.get_style_context().add_class('dialog-title')
+        header.pack_start(title, True, True, 0)
+
         open_folder_btn = Gtk.Button(label="📁 Open Folder")
         open_folder_btn.get_style_context().add_class('flat-button')
         open_folder_btn.connect('clicked', lambda w: subprocess.Popen(['xdg-open', str(OUTPUT_DIR)]))
-        header_box.pack_end(open_folder_btn, False, False, 0)
-        
-        content.pack_start(header_box, False, False, 0)
-        
-        # Game list
+        header.pack_end(open_folder_btn, False, False, 0)
+
+        main_box.pack_start(header, False, False, 0)
+
+        # Scrollable content area
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroll.set_vexpand(True)
-        
+
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        content.set_margin_start(20)
+        content.set_margin_end(20)
+        content.set_margin_top(10)
+        content.set_margin_bottom(20)
+
+        # Game list
         listbox = Gtk.ListBox()
         listbox.set_selection_mode(Gtk.SelectionMode.NONE)
-        
+
         # Find installed games
         games_found = False
         if OUTPUT_DIR.exists():
@@ -2356,19 +3006,19 @@ class RetroPackagerApp(Gtk.Window):
                 if game_dir.is_dir() and (game_dir / "launch.sh").exists():
                     games_found = True
                     row = Gtk.ListBoxRow()
-                    
+
                     box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-                    box.set_margin_start(8)
-                    box.set_margin_end(8)
-                    box.set_margin_top(8)
-                    box.set_margin_bottom(8)
-                    
+                    box.set_margin_start(12)
+                    box.set_margin_end(12)
+                    box.set_margin_top(10)
+                    box.set_margin_bottom(10)
+
                     # Game name
                     name_label = Gtk.Label(label=game_dir.name)
                     name_label.set_halign(Gtk.Align.START)
                     name_label.get_style_context().add_class('menu-button-title')
                     box.pack_start(name_label, True, True, 0)
-                    
+
                     # Calculate size
                     try:
                         size = sum(f.stat().st_size for f in game_dir.rglob('*') if f.is_file())
@@ -2376,166 +3026,244 @@ class RetroPackagerApp(Gtk.Window):
                         size_label = Gtk.Label(label=f"{size_mb:.0f} MB")
                         size_label.get_style_context().add_class('subtitle')
                         box.pack_start(size_label, False, False, 0)
-                    except:
+                    except OSError:
                         pass
-                    
+
                     # Uninstall button
                     uninstall_btn = Gtk.Button(label="🗑️ Uninstall")
                     uninstall_btn.get_style_context().add_class('flat-button')
                     uninstall_btn.connect('clicked', lambda w, gd=game_dir, d=dialog: self._uninstall_game(gd, d))
                     box.pack_end(uninstall_btn, False, False, 0)
-                    
+
                     row.add(box)
                     listbox.add(row)
-        
+
         if not games_found:
             empty_label = Gtk.Label(label="No games installed yet.\nUse Archive.org or Package Local ROM to add games.")
             empty_label.set_justify(Gtk.Justification.CENTER)
-            listbox.add(empty_label)
-        
-        scroll.add(listbox)
-        content.pack_start(scroll, True, True, 0)
-        
+            empty_label.get_style_context().add_class('dialog-message')
+            content.pack_start(empty_label, True, True, 0)
+        else:
+            content.pack_start(listbox, True, True, 0)
+
+        scroll.add(content)
+        main_box.pack_start(scroll, True, True, 0)
+
         dialog.show_all()
         dialog.run()
         dialog.destroy()
     
     def _uninstall_game(self, game_dir, parent_dialog):
-        """Uninstall a game"""
-        confirm = Gtk.MessageDialog(
-            transient_for=parent_dialog,
-            flags=Gtk.DialogFlags.MODAL,
-            message_type=Gtk.MessageType.WARNING,
-            buttons=Gtk.ButtonsType.YES_NO,
-            text=f"Uninstall {game_dir.name}?"
-        )
-        confirm.format_secondary_text("This will delete the game files. You'll need to remove it from Steam manually.")
-        
-        response = confirm.run()
-        confirm.destroy()
-        
-        if response == Gtk.ResponseType.YES:
-            try:
-                shutil.rmtree(game_dir)
-                self.set_status(f"Uninstalled: {game_dir.name}")
-                # Refresh the dialog
-                parent_dialog.destroy()
-                self.on_view_games()
-            except Exception as e:
-                self.show_message("Error", f"Failed to uninstall: {e}")
+        """Uninstall a game and remove from Steam"""
+        # Get game name (directory name, but with underscores converted back to spaces for display)
+        game_name = game_dir.name.replace('_', ' ')
+
+        if not self.show_confirm(
+            f"Uninstall {game_name}?",
+            "This will delete the game files and remove it from Steam.",
+            warning=True
+        ):
+            return
+
+        try:
+            # First, try to remove from Steam shortcuts
+            # Try both the display name and directory name variants
+            launch_path = game_dir / "launch.sh"
+            steam_removed = False
+
+            if launch_path.exists():
+                steam_removed = SteamShortcuts.remove_shortcut(exe_path=str(launch_path))
+
+            # Also try by name (with underscores as stored, and with spaces)
+            if not steam_removed:
+                steam_removed = SteamShortcuts.remove_shortcut(name=game_dir.name)
+            if not steam_removed:
+                steam_removed = SteamShortcuts.remove_shortcut(name=game_name)
+
+            # Delete game files
+            shutil.rmtree(game_dir)
+
+            if steam_removed:
+                self.set_status(f"Uninstalled: {game_name} (removed from Steam)")
+            else:
+                self.set_status(f"Uninstalled: {game_name} (Steam shortcut not found)")
+
+            # Refresh the dialog
+            parent_dialog.destroy()
+            self.on_view_games()
+        except OSError as e:
+            self.show_message("Error", f"Failed to uninstall: {e}")
     
     def on_settings(self):
-        """Open settings dialog"""
+        """Open settings dialog - fullscreen for handheld devices"""
         dialog = Gtk.Dialog(
             title="Settings",
             parent=self,
             flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT
         )
-        dialog.add_buttons(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
-        dialog.set_default_size(500, 300)
-        
-        content = dialog.get_content_area()
-        content.set_spacing(16)
-        content.set_margin_start(20)
-        content.set_margin_end(20)
+        dialog.fullscreen()
+
+        # Main container
+        main_box = dialog.get_content_area()
+        main_box.set_spacing(0)
+
+        # Header bar with back button
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        header.set_margin_start(20)
+        header.set_margin_end(20)
+        header.set_margin_top(20)
+        header.set_margin_bottom(10)
+
+        back_btn = Gtk.Button(label="← Back")
+        back_btn.get_style_context().add_class('flat-button')
+        back_btn.connect('clicked', lambda w: dialog.destroy())
+        header.pack_start(back_btn, False, False, 0)
+
+        title = Gtk.Label(label="Settings")
+        title.get_style_context().add_class('menu-button-title')
+        header.pack_start(title, True, True, 0)
+
+        # Spacer to balance the back button
+        spacer = Gtk.Label(label="")
+        spacer.set_size_request(80, -1)
+        header.pack_end(spacer, False, False, 0)
+
+        main_box.pack_start(header, False, False, 0)
+
+        # Scrollable content area
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroll.set_vexpand(True)
+
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        content.set_margin_start(40)
+        content.set_margin_end(40)
         content.set_margin_top(20)
-        content.set_margin_bottom(20)
-        
+        content.set_margin_bottom(40)
+
         # BIOS Section
         bios_label = Gtk.Label(label="PS1 BIOS File")
         bios_label.set_halign(Gtk.Align.START)
         bios_label.get_style_context().add_class('menu-button-title')
         content.pack_start(bios_label, False, False, 0)
-        
-        bios_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        
+
         self.bios_path_label = Gtk.Label(label=self._get_bios_status())
         self.bios_path_label.set_halign(Gtk.Align.START)
         self.bios_path_label.set_ellipsize(Pango.EllipsizeMode.MIDDLE)
-        bios_box.pack_start(self.bios_path_label, True, True, 0)
-        
+        content.pack_start(self.bios_path_label, False, False, 0)
+
         bios_btn = Gtk.Button(label="Select BIOS")
         bios_btn.get_style_context().add_class('accent-button')
         bios_btn.connect('clicked', self.on_select_bios)
-        bios_box.pack_end(bios_btn, False, False, 0)
-        
-        content.pack_start(bios_box, False, False, 0)
-        
+        content.pack_start(bios_btn, False, False, 8)
+
         # Output directories
+        separator1 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        content.pack_start(separator1, False, False, 12)
+
         out_label = Gtk.Label(label="Games Directories")
         out_label.set_halign(Gtk.Align.START)
         out_label.get_style_context().add_class('menu-button-title')
-        content.pack_start(out_label, False, False, 8)
-        
+        content.pack_start(out_label, False, False, 0)
+
         out_ps1_label = Gtk.Label(label=f"PS1: {OUTPUT_DIR_PS1}")
         out_ps1_label.set_halign(Gtk.Align.START)
         out_ps1_label.set_selectable(True)
         out_ps1_label.set_ellipsize(Pango.EllipsizeMode.MIDDLE)
         content.pack_start(out_ps1_label, False, False, 0)
-        
+
         out_gba_label = Gtk.Label(label=f"GBA: {OUTPUT_DIR_GBA}")
         out_gba_label.set_halign(Gtk.Align.START)
         out_gba_label.set_selectable(True)
         out_gba_label.set_ellipsize(Pango.EllipsizeMode.MIDDLE)
         content.pack_start(out_gba_label, False, False, 0)
-        
+
         # Steam status
+        separator2 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        content.pack_start(separator2, False, False, 12)
+
         steam_label = Gtk.Label(label="Steam Integration")
         steam_label.set_halign(Gtk.Align.START)
         steam_label.get_style_context().add_class('menu-button-title')
-        content.pack_start(steam_label, False, False, 8)
-        
+        content.pack_start(steam_label, False, False, 0)
+
         steam_user = SteamShortcuts.find_user_id()
         steam_status = f"✓ Found Steam user: {steam_user}" if steam_user else "⚠ Steam user not found"
         steam_status_label = Gtk.Label(label=steam_status)
         steam_status_label.set_halign(Gtk.Align.START)
         content.pack_start(steam_status_label, False, False, 0)
-        
+
         # SteamGridDB API Key
-        sgdb_label = Gtk.Label(label="SteamGridDB API Key (for cover artwork)")
+        separator3 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        content.pack_start(separator3, False, False, 12)
+
+        sgdb_label = Gtk.Label(label="SteamGridDB API Key")
         sgdb_label.set_halign(Gtk.Align.START)
         sgdb_label.get_style_context().add_class('menu-button-title')
-        content.pack_start(sgdb_label, False, False, 8)
-        
-        sgdb_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        
-        self.sgdb_entry = Gtk.Entry()
-        self.sgdb_entry.set_placeholder_text("Get free key at steamgriddb.com/profile/preferences/api")
-        self.sgdb_entry.set_text(self._load_sgdb_key())
-        self.sgdb_entry.set_visibility(False)  # Hide API key
-        sgdb_box.pack_start(self.sgdb_entry, True, True, 0)
-        
-        sgdb_save_btn = Gtk.Button(label="Save")
-        sgdb_save_btn.get_style_context().add_class('accent-button')
-        sgdb_save_btn.connect('clicked', lambda w: self._save_sgdb_key(self.sgdb_entry.get_text()))
-        sgdb_box.pack_end(sgdb_save_btn, False, False, 0)
-        
-        content.pack_start(sgdb_box, False, False, 0)
-        
-        sgdb_hint = Gtk.Label(label="Without API key, Archive.org thumbnails will be used (lower quality)")
+        content.pack_start(sgdb_label, False, False, 0)
+
+        sgdb_hint = Gtk.Label(label="For high-quality cover artwork (get free key at steamgriddb.com)")
         sgdb_hint.set_halign(Gtk.Align.START)
         sgdb_hint.get_style_context().add_class('subtitle')
         content.pack_start(sgdb_hint, False, False, 0)
-        
+
+        self.sgdb_entry = Gtk.Entry()
+        self.sgdb_entry.set_placeholder_text("Paste API key here")
+        self.sgdb_entry.set_text(self._load_sgdb_key())
+        self.sgdb_entry.set_visibility(False)
+        content.pack_start(self.sgdb_entry, False, False, 4)
+
+        sgdb_save_btn = Gtk.Button(label="Save API Key")
+        sgdb_save_btn.get_style_context().add_class('accent-button')
+        sgdb_save_btn.connect('clicked', lambda w: self._save_sgdb_key(self.sgdb_entry.get_text()))
+        content.pack_start(sgdb_save_btn, False, False, 8)
+
         # Add to Steam section
-        separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-        content.pack_start(separator, False, False, 12)
-        
+        separator4 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        content.pack_start(separator4, False, False, 12)
+
         steam_add_label = Gtk.Label(label="Add RetroPackager to Steam")
         steam_add_label.set_halign(Gtk.Align.START)
         steam_add_label.get_style_context().add_class('menu-button-title')
         content.pack_start(steam_add_label, False, False, 0)
-        
-        steam_add_hint = Gtk.Label(label="Launch this app from Gaming Mode with custom Frutiger Aero artwork")
+
+        steam_add_hint = Gtk.Label(label="Launch from Gaming Mode with Frutiger Aero artwork")
         steam_add_hint.set_halign(Gtk.Align.START)
         steam_add_hint.get_style_context().add_class('subtitle')
         content.pack_start(steam_add_hint, False, False, 0)
-        
+
         steam_add_btn = Gtk.Button(label="⭐ Add to Steam Library")
         steam_add_btn.get_style_context().add_class('accent-button')
         steam_add_btn.connect('clicked', lambda w: self._add_self_to_steam(dialog))
         content.pack_start(steam_add_btn, False, False, 8)
-        
+
+        # Manage Steam Shortcuts section
+        separator5 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        content.pack_start(separator5, False, False, 12)
+
+        manage_label = Gtk.Label(label="Manage Steam Shortcuts")
+        manage_label.set_halign(Gtk.Align.START)
+        manage_label.get_style_context().add_class('menu-button-title')
+        content.pack_start(manage_label, False, False, 0)
+
+        manage_hint = Gtk.Label(label="View or remove game shortcuts from Steam library")
+        manage_hint.set_halign(Gtk.Align.START)
+        manage_hint.get_style_context().add_class('subtitle')
+        content.pack_start(manage_hint, False, False, 0)
+
+        view_shortcuts_btn = Gtk.Button(label="📋 View All Shortcuts")
+        view_shortcuts_btn.get_style_context().add_class('flat-button')
+        view_shortcuts_btn.connect('clicked', lambda w: self._show_steam_shortcuts_dialog(dialog))
+        content.pack_start(view_shortcuts_btn, False, False, 4)
+
+        remove_all_btn = Gtk.Button(label="🗑️ Remove All Game Shortcuts")
+        remove_all_btn.get_style_context().add_class('flat-button')
+        remove_all_btn.connect('clicked', lambda w: self._remove_all_game_shortcuts(dialog))
+        content.pack_start(remove_all_btn, False, False, 4)
+
+        scroll.add(content)
+        main_box.pack_start(scroll, True, True, 0)
+
         dialog.show_all()
         dialog.run()
         dialog.destroy()
@@ -2550,8 +3278,8 @@ class RetroPackagerApp(Gtk.Window):
                         key, value = line.split('=', 1)
                         config[key.strip()] = value.strip()
                 return config.get('sgdb_api_key', '')
-        except:
-            pass
+        except (OSError, ValueError) as e:
+            debug_log(f"Error loading SGDB key: {e}")
         return ''
     
     def _save_sgdb_key(self, api_key):
@@ -2568,7 +3296,167 @@ class RetroPackagerApp(Gtk.Window):
             self.set_status("SteamGridDB API key saved!")
         except Exception as e:
             self.set_status(f"Error saving API key: {e}")
-    
+
+    def _show_steam_shortcuts_dialog(self, parent_dialog):
+        """Show fullscreen dialog listing all Steam shortcuts with option to remove individually"""
+        dialog = Gtk.Dialog(
+            title="Steam Shortcuts",
+            parent=self,
+            flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT
+        )
+        dialog.fullscreen()
+
+        main_box = dialog.get_content_area()
+        main_box.set_spacing(0)
+
+        # Header bar
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        header.set_margin_start(20)
+        header.set_margin_end(20)
+        header.set_margin_top(20)
+        header.set_margin_bottom(10)
+
+        back_btn = Gtk.Button(label="← Back")
+        back_btn.get_style_context().add_class('flat-button')
+        back_btn.connect('clicked', lambda w: dialog.destroy())
+        header.pack_start(back_btn, False, False, 0)
+
+        title = Gtk.Label(label="Steam Shortcuts")
+        title.get_style_context().add_class('dialog-title')
+        header.pack_start(title, True, True, 0)
+
+        # Spacer for balance
+        spacer = Gtk.Label(label="")
+        spacer.set_size_request(80, -1)
+        header.pack_end(spacer, False, False, 0)
+
+        main_box.pack_start(header, False, False, 0)
+
+        # Scrollable content
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroll.set_vexpand(True)
+
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        content.set_margin_start(20)
+        content.set_margin_end(20)
+        content.set_margin_top(10)
+        content.set_margin_bottom(20)
+
+        hint = Gtk.Label(label="These are all non-Steam games in your library. Click 🗑️ to remove.")
+        hint.get_style_context().add_class('dialog-secondary')
+        hint.set_halign(Gtk.Align.START)
+        content.pack_start(hint, False, False, 0)
+
+        # Shortcuts list
+        listbox = Gtk.ListBox()
+        listbox.set_selection_mode(Gtk.SelectionMode.NONE)
+
+        shortcuts = SteamShortcuts.get_all_shortcuts()
+
+        if not shortcuts:
+            empty_label = Gtk.Label(label="No non-Steam shortcuts found.")
+            empty_label.get_style_context().add_class('dialog-message')
+            empty_label.set_margin_top(20)
+            content.pack_start(empty_label, False, False, 0)
+        else:
+            for shortcut in shortcuts:
+                row = Gtk.ListBoxRow()
+
+                box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+                box.set_margin_start(12)
+                box.set_margin_end(12)
+                box.set_margin_top(10)
+                box.set_margin_bottom(10)
+
+                # Name
+                name_label = Gtk.Label(label=shortcut['name'])
+                name_label.set_halign(Gtk.Align.START)
+                name_label.get_style_context().add_class('menu-button-title')
+                box.pack_start(name_label, True, True, 0)
+
+                # Tags
+                tags_str = ", ".join(shortcut['tags'][:3]) if shortcut['tags'] else "No tags"
+                tags_label = Gtk.Label(label=tags_str)
+                tags_label.get_style_context().add_class('dialog-secondary')
+                box.pack_start(tags_label, False, False, 0)
+
+                # Remove button
+                remove_btn = Gtk.Button(label="🗑️")
+                remove_btn.set_tooltip_text("Remove from Steam")
+                remove_btn.get_style_context().add_class('flat-button')
+                remove_btn.connect('clicked', lambda w, name=shortcut['name'], d=dialog: self._remove_single_shortcut(name, d))
+                box.pack_end(remove_btn, False, False, 0)
+
+                row.add(box)
+                listbox.add(row)
+
+            content.pack_start(listbox, True, True, 0)
+
+        # Count label
+        count_label = Gtk.Label(label=f"Total: {len(shortcuts)} shortcuts")
+        count_label.get_style_context().add_class('dialog-secondary')
+        count_label.set_halign(Gtk.Align.START)
+        content.pack_start(count_label, False, False, 0)
+
+        scroll.add(content)
+        main_box.pack_start(scroll, True, True, 0)
+
+        dialog.show_all()
+        dialog.run()
+        dialog.destroy()
+
+    def _remove_single_shortcut(self, name, parent_dialog):
+        """Remove a single shortcut and refresh the dialog"""
+        if not self.show_confirm(
+            f"Remove '{name}' from Steam?",
+            "This will remove the shortcut and its artwork.",
+            secondary="Game files will not be deleted.",
+            warning=True
+        ):
+            return
+
+        if SteamShortcuts.remove_shortcut(name=name):
+            self.set_status(f"Removed from Steam: {name}")
+            # Refresh the shortcuts dialog
+            parent_dialog.destroy()
+            self._show_steam_shortcuts_dialog(None)
+        else:
+            self.set_status(f"Failed to remove: {name}")
+
+    def _remove_all_game_shortcuts(self, parent_dialog):
+        """Remove all game shortcuts added by RetroPackager"""
+        # Get count first
+        shortcuts = SteamShortcuts.get_all_shortcuts()
+
+        # Filter to only RetroPackager shortcuts (those with our tags)
+        retro_tags = {'ps1', 'playstation', 'gba', 'game boy advance', 'duckstation', 'mgba'}
+        retro_shortcuts = [s for s in shortcuts if any(t.lower() in retro_tags for t in s['tags'])]
+
+        if not retro_shortcuts:
+            self.show_message("No Shortcuts", "No RetroPackager game shortcuts found in Steam.")
+            return
+
+        games_list = "\n".join(f"  • {s['name']}" for s in retro_shortcuts[:10])
+        if len(retro_shortcuts) > 10:
+            games_list += f"\n  ... and {len(retro_shortcuts) - 10} more"
+
+        if not self.show_confirm(
+            f"Remove {len(retro_shortcuts)} game shortcuts from Steam?",
+            "This will remove all PS1 and GBA game shortcuts added by RetroPackager.",
+            secondary=f"Game files will NOT be deleted - only the Steam library entries.\n\nGames:\n{games_list}",
+            warning=True
+        ):
+            return
+
+        # Remove shortcuts with RetroPackager tags
+        removed = SteamShortcuts.remove_shortcuts_by_tags(
+            ['PS1', 'PlayStation', 'GBA', 'Game Boy Advance', 'DuckStation', 'mGBA']
+        )
+        self.set_status(f"Removed {removed} shortcuts from Steam. Restart Steam to see changes.")
+        self.show_message("Shortcuts Removed",
+            f"Removed {removed} game shortcuts from Steam.\n\nRestart Steam to see changes.")
+
     def _generate_frutiger_aero_assets(self):
         """Generate proper Frutiger Aero style graphics for Steam"""
         try:
@@ -2602,8 +3490,9 @@ class RetroPackagerApp(Gtk.Window):
                 if 'Bold' in ttf or 'bold' in ttf:
                     try:
                         return ImageFont.truetype(ttf, size)
-                    except:
-                        pass
+                    except (OSError, IOError):
+                        # Font file couldn't be loaded; try next one
+                        continue
             return ImageFont.load_default()
         
         def create_aero_sky(width, height):
@@ -2713,10 +3602,11 @@ class RetroPackagerApp(Gtk.Window):
             h_draw = ImageDraw.Draw(highlight)
             h_size = int(size * 0.35)
             h_x, h_y = int(size * 0.28), int(size * 0.22)
+            # Draw concentric ellipses from outside in, getting brighter
+            cx, cy = h_x + h_size // 2, h_y + h_size // 2
             for i in range(h_size, 0, -1):
                 alpha = int(220 * (i / h_size) ** 0.5)
-                h_draw.ellipse([h_x + (h_size - i), h_y + (h_size - i),
-                               h_x + h_size + i - (h_size - i), h_y + h_size + i - (h_size - i)],
+                h_draw.ellipse([cx - i, cy - i, cx + i, cy + i],
                               fill=(255, 255, 255, alpha))
             
             orb = Image.alpha_composite(orb, highlight)
@@ -2868,52 +3758,62 @@ class RetroPackagerApp(Gtk.Window):
     
     def _add_self_to_steam(self, parent_dialog):
         """Add RetroPackager to Steam library with Frutiger Aero artwork"""
-        
-        # Create progress dialog
+
+        # Create fullscreen progress dialog
         progress_dialog = Gtk.Dialog(
             title="Adding to Steam",
             parent=self,
             flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT
         )
-        progress_dialog.set_default_size(500, 300)
-        
-        content = progress_dialog.get_content_area()
-        content.set_spacing(12)
-        content.set_margin_start(20)
-        content.set_margin_end(20)
-        content.set_margin_top(20)
-        content.set_margin_bottom(20)
-        
+        progress_dialog.fullscreen()
+
+        main_box = progress_dialog.get_content_area()
+        main_box.set_valign(Gtk.Align.CENTER)
+        main_box.set_halign(Gtk.Align.CENTER)
+
+        # Content card
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        content.get_style_context().add_class('dialog-content')
+        content.set_size_request(600, 400)
+
         # Title
         title_label = Gtk.Label(label="Adding RetroPackager to Steam")
-        title_label.get_style_context().add_class('menu-button-title')
+        title_label.get_style_context().add_class('dialog-title')
+        title_label.set_halign(Gtk.Align.START)
         content.pack_start(title_label, False, False, 0)
-        
+
         # Progress bar
         progress_bar = Gtk.ProgressBar()
         progress_bar.set_show_text(True)
         progress_bar.set_text("Starting...")
+        progress_bar.get_style_context().add_class('progress')
         content.pack_start(progress_bar, False, False, 0)
-        
+
         # Log output
         log_scroll = Gtk.ScrolledWindow()
         log_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
-        log_scroll.set_min_content_height(180)
-        
+        log_scroll.set_vexpand(True)
+
         log_view = Gtk.TextView()
         log_view.set_editable(False)
         log_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
         log_view.set_monospace(True)
+        log_view.get_style_context().add_class('log-view')
         log_buffer = log_view.get_buffer()
         log_scroll.add(log_view)
         content.pack_start(log_scroll, True, True, 0)
-        
+
         # Close button (disabled until done)
+        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        btn_box.set_halign(Gtk.Align.END)
         close_btn = Gtk.Button(label="Close")
+        close_btn.get_style_context().add_class('accent-button')
         close_btn.set_sensitive(False)
         close_btn.connect('clicked', lambda w: progress_dialog.destroy())
-        content.pack_start(close_btn, False, False, 0)
-        
+        btn_box.pack_end(close_btn, False, False, 0)
+        content.pack_start(btn_box, False, False, 0)
+
+        main_box.pack_start(content, False, False, 0)
         progress_dialog.show_all()
         
         def log(msg):
@@ -3120,13 +4020,15 @@ class RetroPackagerApp(Gtk.Window):
     
     def _get_bios_path(self):
         """Get the BIOS file path - auto-detects from script folder"""
-        # Check script directory for any 512KB .bin file
+        # Check script directory for any 512KB .bin file (BIOS_FILE_SIZE = 524288)
+        BIOS_FILE_SIZE = 524288  # 512KB
         for bin_file in SCRIPT_DIR.glob("*.bin"):
             try:
-                if bin_file.stat().st_size == 524288:
+                if bin_file.stat().st_size == BIOS_FILE_SIZE:
                     return bin_file
-            except:
-                pass
+            except OSError:
+                # File inaccessible; skip it
+                continue
         return None
     
     def on_browse_archive(self):
@@ -3559,32 +4461,36 @@ class RetroPackagerApp(Gtk.Window):
                     try:
                         # Load original image
                         pixbuf = GdkPixbuf.Pixbuf.new_from_file(tmp_path)
-                        
+
                         # Get dimensions and crop to square from center if needed
                         width = pixbuf.get_width()
                         height = pixbuf.get_height()
-                        
+
                         # Only crop if not already square
                         if width != height:
                             size = min(width, height)
                             x_offset = (width - size) // 2
                             y_offset = (height - size) // 2
                             pixbuf = pixbuf.new_subpixbuf(x_offset, y_offset, size, size)
-                        
+
                         # Scale to final size
                         pixbuf = pixbuf.scale_simple(300, 300, GdkPixbuf.InterpType.BILINEAR)
                         image_widget.set_from_pixbuf(pixbuf)
-                    except:
+                    except (GLib.Error, OSError) as e:
+                        # Image loading/processing failed; show placeholder
+                        debug_log(f"Image load error: {e}")
                         image_widget.set_from_icon_name("image-missing", Gtk.IconSize.DIALOG)
                     finally:
                         try:
                             if tmp_path:
                                 os.unlink(tmp_path)
-                        except:
+                        except OSError:
+                            # Temp file cleanup failed; not critical
                             pass
-                
+
                 GLib.idle_add(set_image)
-            except:
+            except (urllib.error.URLError, OSError) as e:
+                debug_log(f"Cover art download failed: {e}")
                 GLib.idle_add(lambda: image_widget.set_from_icon_name("image-missing", Gtk.IconSize.DIALOG))
         
         threading.Thread(target=load, daemon=True).start()
@@ -3670,61 +4576,89 @@ class RetroPackagerApp(Gtk.Window):
         threading.Thread(target=fetch_files, daemon=True).start()
     
     def _show_file_selector(self, item_id, files):
-        """Show dialog to select which file to download"""
+        """Show fullscreen dialog to select which file to download"""
         dialog = Gtk.Dialog(
             title="Select File",
             parent=self,
             flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT
         )
-        dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, "Download & Install", Gtk.ResponseType.OK)
-        dialog.set_default_size(500, 400)
-        
-        content = dialog.get_content_area()
-        content.set_spacing(12)
-        content.set_margin_start(16)
-        content.set_margin_end(16)
-        content.set_margin_top(16)
-        
-        label = Gtk.Label(label=f"Select a file from {item_id}:")
-        label.set_halign(Gtk.Align.START)
-        content.pack_start(label, False, False, 0)
-        
+        dialog.fullscreen()
+
+        main_box = dialog.get_content_area()
+        main_box.set_spacing(0)
+
+        # Header bar
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        header.set_margin_start(20)
+        header.set_margin_end(20)
+        header.set_margin_top(20)
+        header.set_margin_bottom(10)
+
+        back_btn = Gtk.Button(label="← Cancel")
+        back_btn.get_style_context().add_class('flat-button')
+        back_btn.connect('clicked', lambda w: dialog.response(Gtk.ResponseType.CANCEL))
+        header.pack_start(back_btn, False, False, 0)
+
+        title = Gtk.Label(label="Select File")
+        title.get_style_context().add_class('dialog-title')
+        header.pack_start(title, True, True, 0)
+
+        download_btn = Gtk.Button(label="Download & Install")
+        download_btn.get_style_context().add_class('accent-button')
+        download_btn.connect('clicked', lambda w: dialog.response(Gtk.ResponseType.OK))
+        header.pack_end(download_btn, False, False, 0)
+
+        main_box.pack_start(header, False, False, 0)
+
+        # Subtitle
+        sub_label = Gtk.Label(label=f"Select a file from {item_id}:")
+        sub_label.get_style_context().add_class('dialog-message')
+        sub_label.set_halign(Gtk.Align.START)
+        sub_label.set_margin_start(20)
+        sub_label.set_margin_bottom(10)
+        main_box.pack_start(sub_label, False, False, 0)
+
+        # Scrollable file list
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroll.set_vexpand(True)
-        
+        scroll.set_margin_start(20)
+        scroll.set_margin_end(20)
+        scroll.set_margin_bottom(20)
+
         listbox = Gtk.ListBox()
         listbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
-        
+
         for f in files:
             row = Gtk.ListBoxRow()
             row.file_data = f
-            
+
             box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-            box.set_margin_start(8)
-            box.set_margin_end(8)
-            box.set_margin_top(8)
-            box.set_margin_bottom(8)
-            
+            box.set_margin_start(12)
+            box.set_margin_end(12)
+            box.set_margin_top(10)
+            box.set_margin_bottom(10)
+
             name_label = Gtk.Label(label=f['name'])
             name_label.set_halign(Gtk.Align.START)
             name_label.set_ellipsize(Pango.EllipsizeMode.MIDDLE)
+            name_label.get_style_context().add_class('dialog-message')
             box.pack_start(name_label, True, True, 0)
-            
+
             size_mb = f['size'] / (1024 * 1024)
             size_label = Gtk.Label(label=f"{size_mb:.1f} MB")
-            size_label.get_style_context().add_class('subtitle')
+            size_label.get_style_context().add_class('dialog-secondary')
             box.pack_end(size_label, False, False, 0)
-            
+
             row.add(box)
             listbox.add(row)
-        
+
         scroll.add(listbox)
-        content.pack_start(scroll, True, True, 0)
-        
+        main_box.pack_start(scroll, True, True, 0)
+
         dialog.show_all()
         response = dialog.run()
-        
+
         if response == Gtk.ResponseType.OK:
             selected_row = listbox.get_selected_row()
             if selected_row and hasattr(selected_row, 'file_data'):
@@ -3753,29 +4687,58 @@ class RetroPackagerApp(Gtk.Window):
         game_name = re.sub(r'\s*\[[^\]]*\]', '', game_name)
         game_name = game_name.strip()
         
-        # Confirm name
+        # Confirm name - fullscreen themed dialog
         name_dialog = Gtk.Dialog(title="Game Name", parent=self, flags=Gtk.DialogFlags.MODAL)
-        name_dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, "Install", Gtk.ResponseType.OK)
-        
-        content = name_dialog.get_content_area()
-        content.set_spacing(12)
-        content.set_margin_start(20)
-        content.set_margin_end(20)
-        content.set_margin_top(20)
-        content.set_margin_bottom(20)
-        
-        label = Gtk.Label(label="Enter name for this game:")
-        label.set_halign(Gtk.Align.START)
-        content.pack_start(label, False, False, 0)
-        
+        name_dialog.fullscreen()
+
+        main_box = name_dialog.get_content_area()
+        main_box.set_valign(Gtk.Align.CENTER)
+        main_box.set_halign(Gtk.Align.CENTER)
+
+        # Content card
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        content.get_style_context().add_class('dialog-content')
+        content.set_size_request(500, -1)
+
+        # Title
+        title_label = Gtk.Label(label="Enter Game Name")
+        title_label.get_style_context().add_class('dialog-title')
+        title_label.set_halign(Gtk.Align.START)
+        content.pack_start(title_label, False, False, 0)
+
+        # Subtitle
+        sub_label = Gtk.Label(label=f"File: {filename}")
+        sub_label.get_style_context().add_class('dialog-secondary')
+        sub_label.set_halign(Gtk.Align.START)
+        sub_label.set_ellipsize(Pango.EllipsizeMode.MIDDLE)
+        content.pack_start(sub_label, False, False, 0)
+
+        # Entry
         name_entry = Gtk.Entry()
         name_entry.set_text(game_name)
         name_entry.get_style_context().add_class('entry')
         content.pack_start(name_entry, False, False, 0)
-        
+
+        # Buttons
+        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        btn_box.set_halign(Gtk.Align.END)
+
+        cancel_btn = Gtk.Button(label="Cancel")
+        cancel_btn.get_style_context().add_class('flat-button')
+        cancel_btn.connect('clicked', lambda w: name_dialog.response(Gtk.ResponseType.CANCEL))
+        btn_box.pack_start(cancel_btn, False, False, 0)
+
+        install_btn = Gtk.Button(label="Install")
+        install_btn.get_style_context().add_class('accent-button')
+        install_btn.connect('clicked', lambda w: name_dialog.response(Gtk.ResponseType.OK))
+        btn_box.pack_start(install_btn, False, False, 0)
+
+        content.pack_start(btn_box, False, False, 0)
+
+        main_box.pack_start(content, False, False, 0)
         name_dialog.show_all()
         response = name_dialog.run()
-        
+
         if response == Gtk.ResponseType.OK:
             game_name = name_entry.get_text().strip()
             name_dialog.destroy()
@@ -3980,10 +4943,10 @@ class RetroPackagerApp(Gtk.Window):
                 (game_dir / "settings.ini").write_text(settings_content)
                 self._log("✓ Created settings.ini")
                 
-                # Create launch script
+                # Create launch script (use shlex.quote for safety)
                 launch_script = f"""#!/bin/bash
-cd "{game_dir}"
-./{APPIMAGE_NAME} -fullscreen -- "./rom/{rom_filename}"
+cd {shlex.quote(str(game_dir))}
+./{APPIMAGE_NAME} -fullscreen -- {shlex.quote(f"./rom/{rom_filename}")}
 """
                 launch_path = game_dir / "launch.sh"
                 launch_path.write_text(launch_script)
@@ -4207,10 +5170,10 @@ cd "{game_dir}"
                 self._set_step("config", "active")
                 self._set_progress(0.75, "Creating launcher...")
                 
-                # Create launch script
+                # Create launch script (use shlex.quote for safety)
                 launch_script = f"""#!/bin/bash
-cd "{game_dir}"
-"{mgba_appimage}" -f "{rom_path}"
+cd {shlex.quote(str(game_dir))}
+{shlex.quote(str(mgba_appimage))} -f {shlex.quote(str(rom_path))}
 """
                 launch_path = game_dir / "launch.sh"
                 launch_path.write_text(launch_script)
@@ -4367,10 +5330,11 @@ cd "{game_dir}"
                 settings_content = get_settings_template(game_dir)
                 (game_dir / "settings.ini").write_text(settings_content)
                 self._log("✓ Created settings.ini")
-                
+
+                # Create launch script (use shlex.quote for safety)
                 launch_script = f"""#!/bin/bash
-cd "{game_dir}"
-./{APPIMAGE_NAME} -fullscreen -- "./rom/{rom_filename}"
+cd {shlex.quote(str(game_dir))}
+./{APPIMAGE_NAME} -fullscreen -- {shlex.quote(f"./rom/{rom_filename}")}
 """
                 launch_path = game_dir / "launch.sh"
                 launch_path.write_text(launch_script)
@@ -4440,17 +5404,107 @@ cd "{game_dir}"
             subprocess.Popen(['bash', str(self.current_launch_path)])
     
     def show_message(self, title, message):
-        """Show a message dialog"""
-        dialog = Gtk.MessageDialog(
-            transient_for=self,
-            flags=Gtk.DialogFlags.MODAL,
-            message_type=Gtk.MessageType.INFO,
-            buttons=Gtk.ButtonsType.OK,
-            text=title
-        )
-        dialog.format_secondary_text(message)
+        """Show a themed fullscreen message dialog"""
+        dialog = Gtk.Dialog(parent=self, flags=Gtk.DialogFlags.MODAL)
+        dialog.fullscreen()
+
+        main_box = dialog.get_content_area()
+        main_box.set_valign(Gtk.Align.CENTER)
+        main_box.set_halign(Gtk.Align.CENTER)
+
+        # Content card
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        content.get_style_context().add_class('dialog-content')
+        content.set_size_request(500, -1)
+
+        # Title
+        title_label = Gtk.Label(label=title)
+        title_label.get_style_context().add_class('dialog-title')
+        title_label.set_halign(Gtk.Align.START)
+        content.pack_start(title_label, False, False, 0)
+
+        # Message
+        msg_label = Gtk.Label(label=message)
+        msg_label.get_style_context().add_class('dialog-message')
+        msg_label.set_halign(Gtk.Align.START)
+        msg_label.set_line_wrap(True)
+        msg_label.set_max_width_chars(50)
+        content.pack_start(msg_label, False, False, 0)
+
+        # OK button
+        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        btn_box.set_halign(Gtk.Align.END)
+        ok_btn = Gtk.Button(label="OK")
+        ok_btn.get_style_context().add_class('accent-button')
+        ok_btn.connect('clicked', lambda w: dialog.destroy())
+        btn_box.pack_end(ok_btn, False, False, 0)
+        content.pack_start(btn_box, False, False, 0)
+
+        main_box.pack_start(content, False, False, 0)
+        dialog.show_all()
         dialog.run()
         dialog.destroy()
+
+    def show_confirm(self, title, message, secondary=None, warning=False):
+        """Show a themed fullscreen confirmation dialog. Returns True if confirmed."""
+        dialog = Gtk.Dialog(parent=self, flags=Gtk.DialogFlags.MODAL)
+        dialog.fullscreen()
+
+        main_box = dialog.get_content_area()
+        main_box.set_valign(Gtk.Align.CENTER)
+        main_box.set_halign(Gtk.Align.CENTER)
+
+        # Content card
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        content.get_style_context().add_class('dialog-content')
+        if warning:
+            content.get_style_context().add_class('dialog-warning')
+        content.set_size_request(500, -1)
+
+        # Title
+        title_label = Gtk.Label(label=title)
+        title_label.get_style_context().add_class('dialog-title')
+        title_label.set_halign(Gtk.Align.START)
+        content.pack_start(title_label, False, False, 0)
+
+        # Message
+        msg_label = Gtk.Label(label=message)
+        msg_label.get_style_context().add_class('dialog-message')
+        msg_label.set_halign(Gtk.Align.START)
+        msg_label.set_line_wrap(True)
+        msg_label.set_max_width_chars(50)
+        content.pack_start(msg_label, False, False, 0)
+
+        # Secondary message
+        if secondary:
+            sec_label = Gtk.Label(label=secondary)
+            sec_label.get_style_context().add_class('dialog-secondary')
+            sec_label.set_halign(Gtk.Align.START)
+            sec_label.set_line_wrap(True)
+            sec_label.set_max_width_chars(50)
+            content.pack_start(sec_label, False, False, 0)
+
+        # Buttons
+        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        btn_box.set_halign(Gtk.Align.END)
+
+        no_btn = Gtk.Button(label="No")
+        no_btn.get_style_context().add_class('flat-button')
+        no_btn.connect('clicked', lambda w: dialog.response(Gtk.ResponseType.NO))
+        btn_box.pack_start(no_btn, False, False, 0)
+
+        yes_btn = Gtk.Button(label="Yes")
+        yes_btn.get_style_context().add_class('accent-button')
+        yes_btn.connect('clicked', lambda w: dialog.response(Gtk.ResponseType.YES))
+        btn_box.pack_start(yes_btn, False, False, 0)
+
+        content.pack_start(btn_box, False, False, 0)
+
+        main_box.pack_start(content, False, False, 0)
+        dialog.show_all()
+        response = dialog.run()
+        dialog.destroy()
+        return response == Gtk.ResponseType.YES
 
 
 # Legacy alias
