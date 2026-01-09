@@ -2723,24 +2723,21 @@ class RetroPackagerApp(Gtk.Window):
         manage_label.get_style_context().add_class('menu-button-title')
         content.pack_start(manage_label, False, False, 0)
 
-        manage_hint = Gtk.Label(label="Remove game shortcuts added by RetroPackager from Steam")
+        manage_hint = Gtk.Label(label="Remove game shortcuts from Steam")
         manage_hint.set_halign(Gtk.Align.START)
         manage_hint.get_style_context().add_class('subtitle')
         content.pack_start(manage_hint, False, False, 0)
 
-        manage_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-
+        # Stack buttons vertically for smaller screens (ROG Ally, Steam Deck)
         view_shortcuts_btn = Gtk.Button(label="📋 View Shortcuts")
         view_shortcuts_btn.get_style_context().add_class('flat-button')
         view_shortcuts_btn.connect('clicked', lambda w: self._show_steam_shortcuts_dialog(dialog))
-        manage_box.pack_start(view_shortcuts_btn, False, False, 0)
+        content.pack_start(view_shortcuts_btn, False, False, 4)
 
-        remove_all_btn = Gtk.Button(label="🗑️ Remove All Game Shortcuts")
+        remove_all_btn = Gtk.Button(label="🗑️ Remove All Shortcuts")
         remove_all_btn.get_style_context().add_class('flat-button')
         remove_all_btn.connect('clicked', lambda w: self._remove_all_game_shortcuts(dialog))
-        manage_box.pack_start(remove_all_btn, False, False, 0)
-
-        content.pack_start(manage_box, False, False, 8)
+        content.pack_start(remove_all_btn, False, False, 4)
 
         dialog.show_all()
         dialog.run()
