@@ -1706,6 +1706,25 @@ class SteamShortcuts:
         return None
 
     @staticmethod
+    def update_shortcut_icon(name, icon_path):
+        """Update the icon field of an existing shortcut by name
+
+        Returns True if shortcut was found and updated, False otherwise
+        """
+        shortcuts = SteamShortcuts.read_shortcuts()
+        if not shortcuts:
+            return False
+
+        for key, shortcut in shortcuts.items():
+            if shortcut.get('AppName') == name:
+                shortcut['icon'] = str(icon_path)
+                debug_log(f"Updated shortcut icon for {name}: {icon_path}")
+                return SteamShortcuts.write_shortcuts(shortcuts)
+
+        debug_log(f"Shortcut not found for icon update: {name}")
+        return False
+
+    @staticmethod
     def remove_shortcut(name=None, exe_path=None):
         """Remove a non-Steam game shortcut by name or exe path
 
@@ -2160,20 +2179,21 @@ class SteamGridDB:
                 debug_log(f"Error downloading logo: {e}")
 
         # Get and save icon (for Big Picture guide button overlay)
+        icon_path = None
         icon_url = SteamGridDB.get_icon(api_key, game_id)
         if icon_url:
             try:
                 response = requests.get(icon_url, timeout=30)
                 if response.status_code == 200:
-                    filepath = grid_path / f"{shortcut_id}_icon.png"
-                    with open(filepath, 'wb') as f:
+                    icon_path = grid_path / f"{shortcut_id}_icon.png"
+                    with open(icon_path, 'wb') as f:
                         f.write(response.content)
-                    debug_log(f"Saved icon to: {filepath}")
+                    debug_log(f"Saved icon to: {icon_path}")
             except Exception as e:
                 debug_log(f"Error downloading icon: {e}")
 
-        debug_log(f"download_all_artwork complete, success={success}")
-        return success
+        debug_log(f"download_all_artwork complete, success={success}, icon_path={icon_path}")
+        return success, icon_path
 
 
 class RetroPackagerApp(Gtk.Window):
@@ -5087,8 +5107,13 @@ cd {shlex.quote(str(game_dir))}
                     clean_name = SteamGridDB.clean_game_name(game_name)
                     self._log(f"  Searching SteamGridDB for: {clean_name}")
 
-                    if SteamGridDB.download_all_artwork(sgdb_key, game_name, shortcut_id):
+                    artwork_success, icon_path = SteamGridDB.download_all_artwork(sgdb_key, game_name, shortcut_id)
+                    if artwork_success:
                         self._log(f"✓ Added high-quality artwork")
+                        # Update shortcut's icon field for Big Picture guide button
+                        if icon_path:
+                            SteamShortcuts.update_shortcut_icon(game_name, icon_path)
+                            self._log(f"✓ Set game icon for Big Picture")
                     else:
                         self._log(f"⚠ Game not found on SteamGridDB")
                         cover_url = f"https://archive.org/services/img/{item_id}"
@@ -5251,17 +5276,22 @@ cd {shlex.quote(str(game_dir))}
                 
                 if shortcut_id:
                     self._log(f"✓ Added to Steam library")
-                    
+
                     # Try SteamGridDB for artwork (local ROMs don't have Archive.org fallback)
                     sgdb_key = self._load_sgdb_key() or SteamGridDB.DEFAULT_API_KEY
                     clean_name = SteamGridDB.clean_game_name(game_name)
                     self._log(f"  Searching SteamGridDB for: {clean_name}")
-                    if SteamGridDB.download_all_artwork(sgdb_key, game_name, shortcut_id):
+                    artwork_success, icon_path = SteamGridDB.download_all_artwork(sgdb_key, game_name, shortcut_id)
+                    if artwork_success:
                         self._log(f"✓ Added high-quality artwork")
+                        # Update shortcut's icon field for Big Picture guide button
+                        if icon_path:
+                            SteamShortcuts.update_shortcut_icon(game_name, icon_path)
+                            self._log(f"✓ Set game icon for Big Picture")
                     else:
                         self._log(f"⚠ Game not found on SteamGridDB")
                         self._log(f"  You can add artwork manually via Decky/SteamGridDB plugin")
-                    
+
                     self._log(f"  Restart Steam to see the game!")
                 else:
                     self._log("⚠ Could not add to Steam automatically")
