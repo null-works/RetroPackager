@@ -6,7 +6,7 @@ Downloads, packages, and installs PS1 and GBA games directly to Steam
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk, GLib, Gio, Pango, GdkPixbuf
+from gi.repository import Gtk, Gdk, GLib, Pango, GdkPixbuf
 import subprocess
 import threading
 import shutil
