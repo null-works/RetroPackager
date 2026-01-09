@@ -10,11 +10,13 @@ from gi.repository import Gtk, Gdk, GLib, Gio, Pango, GdkPixbuf
 import subprocess
 import threading
 import shutil
+import shlex
 import os
 import json
 import struct
 import urllib.request
 import urllib.parse
+import urllib.error
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from datetime import datetime
@@ -87,7 +89,8 @@ class DebugLog:
         if DebugLog._ui_callback:
             try:
                 DebugLog._ui_callback(f"  [DEBUG] {message}")
-            except:
+            except Exception:
+                # UI callback may fail if widget is destroyed; ignore safely
                 pass
 
 def debug_log(message):
@@ -1200,8 +1203,17 @@ class SteamShortcuts:
         shortcuts_path = SteamShortcuts.get_shortcuts_path()
         if not shortcuts_path:
             return False
-        
+
         shortcuts_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Create backup before modifying
+        if shortcuts_path.exists():
+            backup_path = shortcuts_path.with_suffix('.vdf.backup')
+            try:
+                shutil.copy2(shortcuts_path, backup_path)
+                debug_log(f"Created backup: {backup_path}")
+            except OSError as e:
+                debug_log(f"Warning: Could not create backup: {e}")
         
         # Build binary VDF
         data = b'\x00shortcuts\x00'
@@ -1432,7 +1444,6 @@ class SteamGridDB:
                 debug_log(f"SteamGridDB: Unexpected status {response.status_code}")
         except Exception as e:
             debug_log(f"SteamGridDB search error: {e}")
-        return None
         return None
     
     @staticmethod
@@ -2376,7 +2387,8 @@ class RetroPackagerApp(Gtk.Window):
                         size_label = Gtk.Label(label=f"{size_mb:.0f} MB")
                         size_label.get_style_context().add_class('subtitle')
                         box.pack_start(size_label, False, False, 0)
-                    except:
+                    except OSError:
+                        # File access error during size calculation; skip showing size
                         pass
                     
                     # Uninstall button
@@ -2550,8 +2562,8 @@ class RetroPackagerApp(Gtk.Window):
                         key, value = line.split('=', 1)
                         config[key.strip()] = value.strip()
                 return config.get('sgdb_api_key', '')
-        except:
-            pass
+        except (OSError, ValueError) as e:
+            debug_log(f"Error loading SGDB key: {e}")
         return ''
     
     def _save_sgdb_key(self, api_key):
@@ -2602,8 +2614,9 @@ class RetroPackagerApp(Gtk.Window):
                 if 'Bold' in ttf or 'bold' in ttf:
                     try:
                         return ImageFont.truetype(ttf, size)
-                    except:
-                        pass
+                    except (OSError, IOError):
+                        # Font file couldn't be loaded; try next one
+                        continue
             return ImageFont.load_default()
         
         def create_aero_sky(width, height):
@@ -3120,13 +3133,15 @@ class RetroPackagerApp(Gtk.Window):
     
     def _get_bios_path(self):
         """Get the BIOS file path - auto-detects from script folder"""
-        # Check script directory for any 512KB .bin file
+        # Check script directory for any 512KB .bin file (BIOS_FILE_SIZE = 524288)
+        BIOS_FILE_SIZE = 524288  # 512KB
         for bin_file in SCRIPT_DIR.glob("*.bin"):
             try:
-                if bin_file.stat().st_size == 524288:
+                if bin_file.stat().st_size == BIOS_FILE_SIZE:
                     return bin_file
-            except:
-                pass
+            except OSError:
+                # File inaccessible; skip it
+                continue
         return None
     
     def on_browse_archive(self):
@@ -3559,32 +3574,36 @@ class RetroPackagerApp(Gtk.Window):
                     try:
                         # Load original image
                         pixbuf = GdkPixbuf.Pixbuf.new_from_file(tmp_path)
-                        
+
                         # Get dimensions and crop to square from center if needed
                         width = pixbuf.get_width()
                         height = pixbuf.get_height()
-                        
+
                         # Only crop if not already square
                         if width != height:
                             size = min(width, height)
                             x_offset = (width - size) // 2
                             y_offset = (height - size) // 2
                             pixbuf = pixbuf.new_subpixbuf(x_offset, y_offset, size, size)
-                        
+
                         # Scale to final size
                         pixbuf = pixbuf.scale_simple(300, 300, GdkPixbuf.InterpType.BILINEAR)
                         image_widget.set_from_pixbuf(pixbuf)
-                    except:
+                    except (GLib.Error, OSError) as e:
+                        # Image loading/processing failed; show placeholder
+                        debug_log(f"Image load error: {e}")
                         image_widget.set_from_icon_name("image-missing", Gtk.IconSize.DIALOG)
                     finally:
                         try:
                             if tmp_path:
                                 os.unlink(tmp_path)
-                        except:
+                        except OSError:
+                            # Temp file cleanup failed; not critical
                             pass
-                
+
                 GLib.idle_add(set_image)
-            except:
+            except (urllib.error.URLError, OSError) as e:
+                debug_log(f"Cover art download failed: {e}")
                 GLib.idle_add(lambda: image_widget.set_from_icon_name("image-missing", Gtk.IconSize.DIALOG))
         
         threading.Thread(target=load, daemon=True).start()
@@ -3980,10 +3999,10 @@ class RetroPackagerApp(Gtk.Window):
                 (game_dir / "settings.ini").write_text(settings_content)
                 self._log("✓ Created settings.ini")
                 
-                # Create launch script
+                # Create launch script (use shlex.quote for safety)
                 launch_script = f"""#!/bin/bash
-cd "{game_dir}"
-./{APPIMAGE_NAME} -fullscreen -- "./rom/{rom_filename}"
+cd {shlex.quote(str(game_dir))}
+./{APPIMAGE_NAME} -fullscreen -- {shlex.quote(f"./rom/{rom_filename}")}
 """
                 launch_path = game_dir / "launch.sh"
                 launch_path.write_text(launch_script)
@@ -4207,10 +4226,10 @@ cd "{game_dir}"
                 self._set_step("config", "active")
                 self._set_progress(0.75, "Creating launcher...")
                 
-                # Create launch script
+                # Create launch script (use shlex.quote for safety)
                 launch_script = f"""#!/bin/bash
-cd "{game_dir}"
-"{mgba_appimage}" -f "{rom_path}"
+cd {shlex.quote(str(game_dir))}
+{shlex.quote(str(mgba_appimage))} -f {shlex.quote(str(rom_path))}
 """
                 launch_path = game_dir / "launch.sh"
                 launch_path.write_text(launch_script)
@@ -4367,10 +4386,11 @@ cd "{game_dir}"
                 settings_content = get_settings_template(game_dir)
                 (game_dir / "settings.ini").write_text(settings_content)
                 self._log("✓ Created settings.ini")
-                
+
+                # Create launch script (use shlex.quote for safety)
                 launch_script = f"""#!/bin/bash
-cd "{game_dir}"
-./{APPIMAGE_NAME} -fullscreen -- "./rom/{rom_filename}"
+cd {shlex.quote(str(game_dir))}
+./{APPIMAGE_NAME} -fullscreen -- {shlex.quote(f"./rom/{rom_filename}")}
 """
                 launch_path = game_dir / "launch.sh"
                 launch_path.write_text(launch_script)
