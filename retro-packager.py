@@ -712,7 +712,7 @@ window {{
 }}
 
 .title {{
-    font-size: 28px;
+    font-size: 36px;
     font-weight: bold;
     color: {COLORS['text']};
     text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8),
@@ -720,7 +720,7 @@ window {{
 }}
 
 .subtitle {{
-    font-size: 13px;
+    font-size: 18px;
     color: {COLORS['text_dim']};
 }}
 
@@ -777,14 +777,14 @@ window {{
 }}
 
 .menu-button-title {{
-    font-size: 16px;
+    font-size: 22px;
     font-weight: bold;
     color: {COLORS['text']};
     text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
 }}
 
 .menu-button-subtitle {{
-    font-size: 11px;
+    font-size: 16px;
     color: {COLORS['text_dim']};
 }}
 
@@ -907,7 +907,7 @@ button label {{
         rgba(150, 200, 255, 0.2) 100%);
     padding: 8px 14px;
     border-radius: 8px;
-    font-size: 12px;
+    font-size: 16px;
     color: {COLORS['text']};
     border: 1px solid rgba(255, 255, 255, 0.5);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
@@ -944,7 +944,7 @@ button label {{
 .progress text {{
     color: white;
     font-weight: bold;
-    font-size: 11px;
+    font-size: 14px;
     text-shadow: 0 1px 2px rgba(0, 60, 120, 0.5);
 }}
 
@@ -1021,7 +1021,7 @@ flowboxchild:selected:focus .game-card {{
 }}
 
 .game-title {{
-    font-size: 13px;
+    font-size: 18px;
     font-weight: bold;
     color: white;
     background: linear-gradient(transparent, rgba(30, 80, 140, 0.85));
@@ -1031,7 +1031,7 @@ flowboxchild:selected:focus .game-card {{
 
 /* Packaging view */
 .packaging-title {{
-    font-size: 22px;
+    font-size: 28px;
     font-weight: bold;
     color: {COLORS['text']};
     text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7),
@@ -1061,7 +1061,7 @@ flowboxchild:selected:focus .game-card {{
     border-radius: 10px;
     padding: 12px;
     font-family: monospace;
-    font-size: 12px;
+    font-size: 14px;
     color: {COLORS['text']};
     border: 1px solid rgba(255, 255, 255, 0.8);
     box-shadow: inset 0 2px 4px rgba(30, 100, 180, 0.1);
@@ -1087,8 +1087,8 @@ flowboxchild:selected:focus .game-card {{
         rgba(200, 230, 255, 0.4) 100%);
     border: 1px solid rgba(255, 255, 255, 0.7);
     border-radius: 22px;
-    padding: 8px 18px;
-    font-size: 14px;
+    padding: 10px 22px;
+    font-size: 18px;
     font-weight: bold;
     color: {COLORS['text_dim']};
     box-shadow: 0 3px 10px rgba(30, 100, 180, 0.15),
@@ -1188,19 +1188,19 @@ dialog {{
 }}
 
 .dialog-title {{
-    font-size: 24px;
+    font-size: 30px;
     font-weight: bold;
     color: {COLORS['text']};
     text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
 }}
 
 .dialog-message {{
-    font-size: 14px;
+    font-size: 18px;
     color: {COLORS['text']};
 }}
 
 .dialog-secondary {{
-    font-size: 12px;
+    font-size: 16px;
     color: {COLORS['text_dim']};
 }}
 
