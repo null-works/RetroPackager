@@ -1384,9 +1384,9 @@ CONFIG_FILE = SCRIPT_DIR / "ps1-packager.conf"
 
 class SteamGridDB:
     """Fetch artwork from SteamGridDB"""
-    
+
     BASE_URL = "https://www.steamgriddb.com/api/v2"
-    DEFAULT_API_KEY = "2afc4b8f27c1d75437a2dc00c6fe3d0a"
+    DEFAULT_API_KEY = ""  # Get your key at steamgriddb.com/profile/preferences/api
     
     @staticmethod
     def clean_game_name(game_name):
@@ -1432,7 +1432,6 @@ class SteamGridDB:
                 debug_log(f"SteamGridDB: Unexpected status {response.status_code}")
         except Exception as e:
             debug_log(f"SteamGridDB search error: {e}")
-        return None
         return None
     
     @staticmethod
