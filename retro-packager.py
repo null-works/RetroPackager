@@ -2992,7 +2992,7 @@ class RetroPackagerApp(Gtk.Window):
 
         open_folder_btn = Gtk.Button(label="📁 Open Folder")
         open_folder_btn.get_style_context().add_class('flat-button')
-        open_folder_btn.connect('clicked', lambda w: subprocess.Popen(['xdg-open', str(OUTPUT_DIR)]))
+        open_folder_btn.connect('clicked', lambda w: subprocess.Popen(['xdg-open', str(Path.home() / "Games")]))
         header.pack_end(open_folder_btn, False, False, 0)
 
         main_box.pack_start(header, False, False, 0)
@@ -3012,44 +3012,59 @@ class RetroPackagerApp(Gtk.Window):
         listbox = Gtk.ListBox()
         listbox.set_selection_mode(Gtk.SelectionMode.NONE)
 
-        # Find installed games
+        # Find installed games from both PS1 and GBA directories
         games_found = False
-        if OUTPUT_DIR.exists():
-            for game_dir in sorted(OUTPUT_DIR.iterdir()):
-                if game_dir.is_dir() and (game_dir / "launch.sh").exists():
-                    games_found = True
-                    row = Gtk.ListBoxRow()
+        all_games = []
 
-                    box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-                    box.set_margin_start(12)
-                    box.set_margin_end(12)
-                    box.set_margin_top(10)
-                    box.set_margin_bottom(10)
+        for system_name, system_dir in [("PS1", OUTPUT_DIR_PS1), ("GBA", OUTPUT_DIR_GBA)]:
+            if system_dir.exists():
+                for game_dir in system_dir.iterdir():
+                    if game_dir.is_dir() and (game_dir / "launch.sh").exists():
+                        all_games.append((system_name, game_dir))
 
-                    # Game name
-                    name_label = Gtk.Label(label=game_dir.name)
-                    name_label.set_halign(Gtk.Align.START)
-                    name_label.get_style_context().add_class('menu-button-title')
-                    box.pack_start(name_label, True, True, 0)
+        # Sort all games by name
+        all_games.sort(key=lambda x: x[1].name.lower())
 
-                    # Calculate size
-                    try:
-                        size = sum(f.stat().st_size for f in game_dir.rglob('*') if f.is_file())
-                        size_mb = size / (1024 * 1024)
-                        size_label = Gtk.Label(label=f"{size_mb:.0f} MB")
-                        size_label.get_style_context().add_class('subtitle')
-                        box.pack_start(size_label, False, False, 0)
-                    except OSError:
-                        pass
+        for system_name, game_dir in all_games:
+            games_found = True
+            row = Gtk.ListBoxRow()
 
-                    # Uninstall button
-                    uninstall_btn = Gtk.Button(label="🗑️ Uninstall")
-                    uninstall_btn.get_style_context().add_class('flat-button')
-                    uninstall_btn.connect('clicked', lambda w, gd=game_dir, d=dialog: self._uninstall_game(gd, d))
-                    box.pack_end(uninstall_btn, False, False, 0)
+            box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+            box.set_margin_start(12)
+            box.set_margin_end(12)
+            box.set_margin_top(10)
+            box.set_margin_bottom(10)
 
-                    row.add(box)
-                    listbox.add(row)
+            # System badge
+            system_label = Gtk.Label(label=system_name)
+            system_label.get_style_context().add_class('subtitle')
+            system_label.set_size_request(40, -1)
+            box.pack_start(system_label, False, False, 0)
+
+            # Game name
+            name_label = Gtk.Label(label=game_dir.name)
+            name_label.set_halign(Gtk.Align.START)
+            name_label.get_style_context().add_class('menu-button-title')
+            box.pack_start(name_label, True, True, 0)
+
+            # Calculate size
+            try:
+                size = sum(f.stat().st_size for f in game_dir.rglob('*') if f.is_file())
+                size_mb = size / (1024 * 1024)
+                size_label = Gtk.Label(label=f"{size_mb:.0f} MB")
+                size_label.get_style_context().add_class('subtitle')
+                box.pack_start(size_label, False, False, 0)
+            except OSError:
+                pass
+
+            # Uninstall button
+            uninstall_btn = Gtk.Button(label="🗑️ Uninstall")
+            uninstall_btn.get_style_context().add_class('flat-button')
+            uninstall_btn.connect('clicked', lambda w, gd=game_dir, d=dialog: self._uninstall_game(gd, d))
+            box.pack_end(uninstall_btn, False, False, 0)
+
+            row.add(box)
+            listbox.add(row)
 
         if not games_found:
             empty_label = Gtk.Label(label="No games installed yet.\nUse Archive.org or Package Local ROM to add games.")
