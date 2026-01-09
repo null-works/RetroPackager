@@ -1012,22 +1012,22 @@ MSAA = 0
 
 [Rosalie's Mupen GUI - Input Plugin Profile 0]
 Input_PluggedIn = True
-Input_DeviceType = Automatic
+Input_DeviceType = 4
 Input_Deadzone = 15
 Input_Sensitivity = 100
-Input_Pak = MemoryPak
+Input_Pak = 0
 
 [Rosalie's Mupen GUI - Input Plugin Profile 1]
 Input_PluggedIn = False
-Input_DeviceType = Automatic
+Input_DeviceType = 0
 
 [Rosalie's Mupen GUI - Input Plugin Profile 2]
 Input_PluggedIn = False
-Input_DeviceType = Automatic
+Input_DeviceType = 0
 
 [Rosalie's Mupen GUI - Input Plugin Profile 3]
 Input_PluggedIn = False
-Input_DeviceType = Automatic
+Input_DeviceType = 0
 """
 
 # === FRUTIGER AERO COLOR PALETTE ===
