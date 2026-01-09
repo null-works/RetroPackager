@@ -1386,7 +1386,7 @@ class SteamGridDB:
     """Fetch artwork from SteamGridDB"""
 
     BASE_URL = "https://www.steamgriddb.com/api/v2"
-    DEFAULT_API_KEY = ""  # Get your key at steamgriddb.com/profile/preferences/api
+    DEFAULT_API_KEY = "2afc4b8f27c1d75437a2dc00c6fe3d0a"
     
     @staticmethod
     def clean_game_name(game_name):
