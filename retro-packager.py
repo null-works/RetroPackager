@@ -90,9 +90,11 @@ SYSTEMS = {
         "color": "#008000",
         # Installation config
         "rom_extensions": [".z64", ".n64", ".v64"],  # Priority order for ROM detection
-        "emulator_portable": False,     # Use shared emulator
-        "emulator_subdir": "rmg",       # Shared dir: ~/Games/emulators/rmg/
-        "needs_settings": False,        # RMG handles its own config
+        "emulator_portable": True,      # Copy emulator to game dir (portable mode)
+        "emulator_subdir": None,        # No shared dir, copied per-game
+        "needs_settings": True,         # Generate mupen64plus.cfg
+        "settings_dir": "RMG.AppImage.config/RMG",  # Portable config dir for RMG
+        "settings_file": "mupen64plus.cfg",  # Config filename
         "launch_args": "--fullscreen",  # Fullscreen flag
         "launch_relative_rom": False,   # Use absolute ROM path in launch script
         "tags": ["N64", "Nintendo 64", "RMG"],
@@ -845,6 +847,179 @@ Enabled = false
 
 [GameList]
 RecursiveScan = true
+"""
+
+def get_n64_settings_template():
+    """Generate RMG/mupen64plus.cfg content with Xbox/ROG Ally controller mapping"""
+    return """[64DD]
+IPL-ROM =
+
+[Core]
+Version = 1.010000
+OnScreenDisplay = True
+NoCompiledJump = False
+DisableExtraMem = False
+EnableDebugger = False
+CountPerOp = 0
+CountPerOpDenomPot = 0
+DelaySI = True
+RandomizeInterrupt = True
+ScreenshotPath =
+SaveStatePath =
+SaveSRAMPath =
+SharedDataPath =
+GbCameraVideoCaptureBackend1 =
+
+[Transferpak]
+GB-rom-1 =
+GB-ram-1 =
+
+[CoreEvents]
+Version = 1
+Joy Mapping Stop =
+Joy Mapping Fullscreen =
+Joy Mapping Save State =
+Joy Mapping Load State =
+Joy Mapping Increment Slot =
+Joy Mapping Reset =
+Joy Mapping Speed Down =
+Joy Mapping Speed Up =
+Joy Mapping Screenshot =
+Joy Mapping Pause =
+Joy Mapping Mute =
+Joy Mapping Increase Volume =
+Joy Mapping Decrease Volume =
+Joy Mapping Fast Forward =
+Joy Mapping Frame Advance =
+Joy Mapping Gameshark =
+
+[Input-SDL-Control1]
+Version = 2.000000
+# Controller config mode: 0=Manual, 1=Auto with named device, 2=Fully automatic
+mode = 0
+device = 0
+plugged = True
+plugin = 2
+mouse = False
+MouseSensitivity = "2.00,2.00"
+# Deadzone and peak values for analog sticks
+AnalogDeadzone = "4096,4096"
+AnalogPeak = "32768,32768"
+# N64 D-Pad mapped to Xbox D-Pad (hat)
+DPad R = "hat(0 Right)"
+DPad L = "hat(0 Left)"
+DPad D = "hat(0 Down)"
+DPad U = "hat(0 Up)"
+# N64 Start = Xbox Start (button 7)
+Start = "button(7)"
+# N64 Z Trigger = Xbox Left Trigger (axis 2+)
+Z Trig = "axis(2+)"
+# N64 B = Xbox X (button 2)
+B Button = "button(2)"
+# N64 A = Xbox A (button 0)
+A Button = "button(0)"
+# N64 C buttons = Xbox Right Stick
+C Button R = "axis(3+)"
+C Button L = "axis(3-)"
+C Button D = "axis(4+)"
+C Button U = "axis(4-)"
+# N64 R Trigger = Xbox Right Bumper (button 5)
+R Trig = "button(5)"
+# N64 L Trigger = Xbox Left Bumper (button 4)
+L Trig = "button(4)"
+Mempak switch = ""
+Rumblepak switch = ""
+# N64 Analog stick = Xbox Left Stick
+X Axis = "axis(0-,0+)"
+Y Axis = "axis(1-,1+)"
+
+[Input-SDL-Control2]
+Version = 2.000000
+mode = 2
+device = -1
+plugged = False
+plugin = 2
+mouse = False
+
+[Input-SDL-Control3]
+Version = 2.000000
+mode = 2
+device = -1
+plugged = False
+plugin = 2
+mouse = False
+
+[Input-SDL-Control4]
+Version = 2.000000
+mode = 2
+device = -1
+plugged = False
+plugin = 2
+mouse = False
+
+[Rosalie's Mupen GUI]
+Version = 17
+GUI.HideCursorInEmulation = True
+GUI.HideCursorInFullscreenEmulation = True
+GUI.PauseEmulationOnFocusLoss = False
+GUI.ResumeEmulationOnFocus = True
+GUI.AutomaticFullscreen = True
+GUI.ConfirmDragDrop = False
+GUI.ShowVerboseLogMessages = False
+Keybind.StartROM =
+Keybind.StartCombo =
+Keybind.Shutdown =
+Keybind.RefreshROMList =
+Keybind.Exit =
+Keybind.SoftReset =
+Keybind.HardReset =
+Keybind.Resume =
+Keybind.GenerateBitmap =
+Keybind.LimitFPS =
+Keybind.SpeedFactor25 =
+Keybind.SpeedFactor50 =
+Keybind.SpeedFactor75 =
+Keybind.SpeedFactor100 =
+Keybind.SpeedFactor125 =
+Keybind.SpeedFactor150 =
+Keybind.SpeedFactor175 =
+Keybind.SpeedFactor200 =
+Keybind.SpeedFactor225 =
+Keybind.SpeedFactor250 =
+Keybind.SpeedFactor275 =
+Keybind.SpeedFactor300 =
+Keybind.SaveState =
+Keybind.SaveAs =
+Keybind.LoadState =
+Keybind.Load =
+Keybind.Cheats =
+Keybind.GSButton =
+Keybind.Fullscreen =
+Keybind.Settings =
+Keybind.IncreaseStateSlot =
+Keybind.DecreaseStateSlot =
+
+[Video-General]
+Fullscreen = True
+ScreenWidth = 1920
+ScreenHeight = 1080
+VerticalSync = True
+
+[Video-GLideN64]
+Version = 29
+MultiSampling = 0
+FXAA = False
+AspectRatio = 1
+BufferSwapMode = 2
+UseNativeResolutionFactor = 2
+bilinearMode = 1
+MaxAnisotropy = 0
+ShowFPS = False
+ShowVIS = False
+ShowPercent = False
+ShowInternalResolution = False
+ShowRenderingResolution = False
+MSAA = 0
 """
 
 # === FRUTIGER AERO COLOR PALETTE ===
@@ -5413,11 +5588,21 @@ class RetroPackagerApp(Gtk.Window):
                     # Use shared emulator path
                     emulator_launch_path = shlex.quote(str(emulator_cache))
 
-                # Generate settings.ini if needed (PS1 specific)
+                # Generate settings if needed (PS1 or N64)
                 if system.get("needs_settings"):
-                    settings_content = get_settings_template(game_dir)
-                    (game_dir / "settings.ini").write_text(settings_content)
-                    self._log("✓ Created settings.ini")
+                    if system.get("settings_dir"):
+                        # N64: Create portable config directory structure
+                        settings_dir = game_dir / system["settings_dir"]
+                        settings_dir.mkdir(parents=True, exist_ok=True)
+                        settings_file = settings_dir / system["settings_file"]
+                        settings_content = get_n64_settings_template()
+                        settings_file.write_text(settings_content)
+                        self._log(f"✓ Created {system['settings_file']}")
+                    else:
+                        # PS1: Create settings.ini in game dir
+                        settings_content = get_settings_template(game_dir)
+                        (game_dir / "settings.ini").write_text(settings_content)
+                        self._log("✓ Created settings.ini")
 
                 # Build ROM path for launch script
                 if system.get("launch_relative_rom"):
