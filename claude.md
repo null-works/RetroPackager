@@ -2,11 +2,55 @@
 
 ## Overview
 
-RetroPackager is a GTK3 Python application for downloading, packaging, and installing PS1/GBA retro games on Steam Deck. It integrates with Archive.org for game downloads, SteamGridDB for artwork, and Steam for library management.
+RetroPackager is a GTK3 Python application for downloading, packaging, and installing PS1/GBA/N64 retro games on Steam Deck and handheld PCs (ROG Ally, etc.). It integrates with Archive.org for game downloads, SteamGridDB for artwork, and Steam for library management.
 
-**Primary Use Case**: Personal retro gaming setup on Steam Deck in Gaming Mode.
+**Primary Use Case**: Personal retro gaming setup on Steam Deck/ROG Ally in Gaming Mode.
 
 **Scope**: This is a private application built for personal use by 3 people. It is not intended for public distribution. As such, the hardcoded SteamGridDB API key and other security considerations (auto pip install, no checksum verification, etc.) are acceptable trade-offs for convenience in this trusted environment.
+
+## CRITICAL Design Principle: Portable Emulators
+
+**ALL emulators MUST be portable and self-contained per game installation.**
+
+This means:
+1. **Each game gets its own copy of the emulator** - No shared emulator installations
+2. **Pre-configured controller mappings** - Must work out-of-the-box with Xbox-style controllers (Steam Deck, ROG Ally)
+3. **Settings bundled with game** - Each game directory contains all config needed to run
+4. **No external dependencies** - Game should launch without requiring system-wide emulator setup
+
+### Why Portable Mode?
+- **Consistency**: Games always launch with known-working settings
+- **Controller support**: Pre-configured mappings for handheld devices
+- **Isolation**: One game's config can't break another
+- **Portability**: Copy game folder to another device and it works
+- **No system pollution**: Uninstalling removes everything cleanly
+
+### Implementing Portable Mode for New Emulators
+
+When adding a new system/emulator:
+
+1. **Set `emulator_portable: True`** in SYSTEMS config
+2. **Set `needs_settings: True`** to generate config files
+3. **Create settings template function** (e.g., `get_n64_settings_template()`)
+4. **Include controller mappings** for Xbox-style controllers:
+   - Left Stick, Right Stick, D-Pad
+   - A/B/X/Y buttons
+   - LB/RB shoulder buttons
+   - LT/RT triggers
+   - Start/Back buttons
+5. **Use AppImage portable config** if supported (e.g., `AppName.AppImage.config/` directory)
+
+### Example: N64 Portable Structure
+```
+~/Games/N64/GameName/
+├── RMG.AppImage                    # Emulator copy
+├── RMG.AppImage.config/            # Portable config (AppImage convention)
+│   └── RMG/
+│       └── mupen64plus.cfg         # Controller + emulator settings
+├── rom/
+│   └── game.z64
+└── launch.sh
+```
 
 ## Architecture
 
@@ -40,8 +84,9 @@ RetroPackager is a GTK3 Python application for downloading, packaging, and insta
 SCRIPT_DIR = Path(__file__).parent.resolve()
 OUTPUT_DIR_PS1 = Path.home() / "Games" / "PS1"
 OUTPUT_DIR_GBA = Path.home() / "Games" / "GBA"
+OUTPUT_DIR_N64 = Path.home() / "Games" / "N64"
 DOWNLOAD_DIR = Path.home() / "Games" / "downloads"
-EMULATOR_DIR = Path.home() / "Games" / "emulators"
+EMULATOR_DIR = Path.home() / "Games" / "emulators"  # Cache for downloaded emulators
 DEBUG_LOG = SCRIPT_DIR / "retro-packager-debug.log"
 CONFIG_FILE = SCRIPT_DIR / "ps1-packager.conf"
 ```
@@ -56,15 +101,17 @@ CONFIG_FILE = SCRIPT_DIR / "ps1-packager.conf"
 
 ## Key Data Structures
 
-### SYSTEMS Dict (lines 33-58)
+### SYSTEMS Dict (lines 33-102)
 Contains config for each supported system:
-- `ps1`: DuckStation, requires BIOS, CHD/CUE/ISO formats
-- `gba`: mGBA, no BIOS needed, GBA/GBC/GB formats
+- `ps1`: DuckStation, requires BIOS, CHD/CUE/ISO formats, portable per-game
+- `gba`: mGBA, no BIOS needed, GBA/GBC/GB formats, portable per-game
+- `n64`: RMG (Rosalie's Mupen GUI), no BIOS needed, Z64/N64/V64 formats, portable per-game
 
 ### Genre Databases
-- `PS1_GENRES` (lines 133-281): 350+ games mapped to genres
-- `GBA_GENRES` (lines 445-474): 50+ games mapped to genres
-- `TOP_PICKS` / `GBA_TOP_PICKS`: Curated lists per genre
+- `PS1_GENRES`: 350+ games mapped to genres
+- `GBA_GENRES`: 50+ games mapped to genres
+- `N64_GENRES`: 70+ games mapped to genres
+- `TOP_PICKS` / `GBA_TOP_PICKS` / `N64_TOP_PICKS`: Curated lists per genre
 
 ## Steam Integration
 
@@ -113,6 +160,7 @@ SteamShortcuts.remove_artwork(app_id)
 ### Game Tags Used
 - PS1 games: `['PS1', 'PlayStation', 'DuckStation']`
 - GBA games: `['GBA', 'Game Boy Advance', 'mGBA']`
+- N64 games: `['N64', 'Nintendo 64', 'RMG']`
 
 ## Threading Pattern
 
@@ -128,22 +176,47 @@ def async_operation():
 ## Installation Flow
 
 1. Download ROM from Archive.org
-2. Download/verify emulator (DuckStation or mGBA)
-3. Extract and copy ROM files
+2. Download/cache emulator AppImage
+3. Extract and copy ROM files to game directory
 4. Copy BIOS (PS1 only)
-5. Generate settings.ini and launch.sh
-6. Add to Steam shortcuts.vdf
-7. Download artwork from SteamGridDB
+5. **Copy emulator to game directory** (portable mode)
+6. **Generate emulator config with controller mappings**
+7. Create launch.sh script
+8. Add to Steam shortcuts.vdf
+9. Download artwork from SteamGridDB
 
-### Game Directory Structure
+### Game Directory Structures
+
+**PS1 (DuckStation)**:
 ```
 ~/Games/PS1/{GameName}/
-├── rom/              # ROM files
-├── bios/             # PS1 BIOS (if applicable)
-├── DuckStation.AppImage
-├── settings.ini      # Emulator config
-├── launch.sh         # Launch script
-└── portable.txt      # Portable mode flag
+├── rom/                    # ROM files (.chd, .cue, .bin, etc.)
+├── bios/                   # PS1 BIOS files
+├── DuckStation.AppImage    # Emulator copy
+├── settings.ini            # DuckStation config + controller mappings
+├── launch.sh               # Launch script
+└── portable.txt            # Portable mode flag
+```
+
+**GBA (mGBA)**:
+```
+~/Games/GBA/{GameName}/
+├── rom/                    # ROM files (.gba, .gbc, .gb)
+├── mGBA.AppImage           # Emulator copy
+├── launch.sh               # Launch script
+└── portable.txt            # Portable mode flag
+```
+
+**N64 (RMG)**:
+```
+~/Games/N64/{GameName}/
+├── rom/                    # ROM files (.z64, .n64, .v64)
+├── RMG.AppImage            # Emulator copy
+├── RMG.AppImage.config/    # Portable config directory
+│   └── RMG/
+│       └── mupen64plus.cfg # Controller + emulator settings
+├── launch.sh               # Launch script
+└── portable.txt            # Portable mode flag
 ```
 
 ## Known Technical Debt
