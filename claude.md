@@ -52,6 +52,24 @@ When adding a new system/emulator:
 └── launch.sh
 ```
 
+### RMG-Input Plugin Configuration
+
+**IMPORTANT**: RMG uses its own input plugin (RMG-Input), NOT the standard mupen64plus `[Input-SDL-ControlX]` sections. The config sections are:
+
+```ini
+[Rosalie's Mupen GUI - Input Plugin Profile 0]  # Player 1
+Input_PluggedIn = True
+Input_DeviceType = Automatic   # Auto-detect any controller
+Input_Deadzone = 15
+Input_Sensitivity = 100
+Input_Pak = MemoryPak
+```
+
+Key settings:
+- `Input_DeviceType = Automatic` - Auto-detects any connected controller
+- `Input_PluggedIn = True` - Enables the controller port
+- Profiles 0-3 correspond to N64 controller ports 1-4
+
 ## Architecture
 
 ### Single-File Monolith

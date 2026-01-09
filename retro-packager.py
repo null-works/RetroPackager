@@ -850,7 +850,7 @@ RecursiveScan = true
 """
 
 def get_n64_settings_template():
-    """Generate RMG/mupen64plus.cfg content with Xbox/ROG Ally controller mapping"""
+    """Generate RMG/mupen64plus.cfg content with auto-detect controller via RMG-Input plugin"""
     return """[64DD]
 IPL-ROM =
 
@@ -1009,6 +1009,25 @@ ShowPercent = False
 ShowInternalResolution = False
 ShowRenderingResolution = False
 MSAA = 0
+
+[Rosalie's Mupen GUI - Input Plugin Profile 0]
+Input_PluggedIn = True
+Input_DeviceType = Automatic
+Input_Deadzone = 15
+Input_Sensitivity = 100
+Input_Pak = MemoryPak
+
+[Rosalie's Mupen GUI - Input Plugin Profile 1]
+Input_PluggedIn = False
+Input_DeviceType = Automatic
+
+[Rosalie's Mupen GUI - Input Plugin Profile 2]
+Input_PluggedIn = False
+Input_DeviceType = Automatic
+
+[Rosalie's Mupen GUI - Input Plugin Profile 3]
+Input_PluggedIn = False
+Input_DeviceType = Automatic
 """
 
 # === FRUTIGER AERO COLOR PALETTE ===
