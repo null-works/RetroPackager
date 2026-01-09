@@ -45,18 +45,36 @@ SYSTEMS = {
         "extensions": [".bin", ".cue", ".chd", ".iso", ".img", ".pbp"],
         "icon": "🎮",
         "color": "#003791",
+        # Installation config
+        "rom_extensions": [".cue", ".chd", ".iso", ".bin", ".pbp"],  # Priority order for ROM detection
+        "emulator_portable": True,      # Copy emulator to game dir (portable mode)
+        "emulator_subdir": None,        # No shared dir, copied per-game
+        "needs_settings": True,         # Generate settings.ini
+        "launch_args": "-fullscreen --",  # Args before ROM path
+        "launch_relative_rom": True,    # Use relative ./rom/ path in launch script
+        "tags": ["PS1", "PlayStation", "DuckStation"],
+        "parse_cue_files": True,        # Parse .cue to find associated .bin files
     },
     "gba": {
-        "name": "Game Boy Advance", 
+        "name": "Game Boy Advance",
         "short": "GBA",
         "output_dir": OUTPUT_DIR_GBA,
         "emulator_url": "https://github.com/mgba-emu/mgba/releases/download/0.10.5/mGBA-0.10.5-appimage-x64.appimage",
-        "emulator_name": "mGBA",
+        "emulator_name": "mGBA.AppImage",
         "needs_bios": False,
         "bios_files": [],
         "extensions": [".gba", ".gbc", ".gb", ".zip", ".7z"],
         "icon": "🕹️",
         "color": "#4F2683",
+        # Installation config
+        "rom_extensions": [".gba", ".gbc", ".gb"],  # Priority order for ROM detection
+        "emulator_portable": False,     # Use shared emulator
+        "emulator_subdir": "mgba",      # Shared dir: ~/Games/emulators/mgba/
+        "needs_settings": False,        # No settings.ini needed
+        "launch_args": "-f",            # Fullscreen flag
+        "launch_relative_rom": False,   # Use absolute ROM path in launch script
+        "tags": ["GBA", "Game Boy Advance", "mGBA"],
+        "parse_cue_files": False,       # Not applicable
     }
 }
 
@@ -4771,10 +4789,7 @@ class RetroPackagerApp(Gtk.Window):
             game_name = name_entry.get_text().strip()
             name_dialog.destroy()
             if game_name:
-                if self.current_system == "gba":
-                    self._run_gba_installation(item_id, filename, game_name)
-                else:
-                    self._run_installation(item_id, filename, game_name, bios_path)
+                self._run_system_installation(self.current_system, item_id, filename, game_name, bios_path)
         else:
             name_dialog.destroy()
     
@@ -4827,262 +4842,43 @@ class RetroPackagerApp(Gtk.Window):
             if text:
                 self.packaging_progress.set_text(text)
         GLib.idle_add(update)
-    
-    def _run_installation(self, item_id, filename, game_name, bios_path):
-        """Run the full installation process"""
+
+    def _run_system_installation(self, system_key, item_id, filename, game_name, bios_path=None):
+        """Unified installation for any system - uses SYSTEMS config for system-specific behavior"""
+        system = SYSTEMS[system_key]
         self._reset_packaging_view(game_name, item_id)
         self.stack.set_visible_child_name("packaging")
-        
-        # Hook up debug logger to UI
+
         DebugLog.get().set_ui_callback(self._log)
-        debug_log(f"Starting installation: {game_name}")
-        
+        debug_log(f"Starting {system['short']} installation: {game_name}")
+
         def install_thread():
             try:
-                # Replace spaces with underscores to avoid path issues
+                # Setup paths
                 safe_game_name = game_name.replace(' ', '_')
-                game_dir = OUTPUT_DIR / safe_game_name
+                game_dir = system["output_dir"] / safe_game_name
                 self.current_game_dir = game_dir
-                
-                # Step 1: Download
+
+                # === Step 1: Download ===
                 self._set_step("download", "active")
                 self._set_progress(0.05, "Downloading...")
                 self._log(f"Downloading: {filename}")
                 self._log(f"From: archive.org/download/{item_id}/")
-                
+
                 dest_dir = DOWNLOAD_DIR / item_id
                 dest_dir.mkdir(parents=True, exist_ok=True)
                 dest_file = dest_dir / filename
-                
-                self._log(f"To: {dest_file}")
-                
+
                 encoded_filename = urllib.parse.quote(filename)
                 url = f"https://archive.org/download/{item_id}/{encoded_filename}"
-                
-                def download_progress(block_num, block_size, total_size):
-                    if total_size > 0:
-                        progress = min(block_num * block_size / total_size, 1.0)
-                        downloaded_mb = (block_num * block_size) / (1024 * 1024)
-                        total_mb = total_size / (1024 * 1024)
-                        self._set_progress(0.05 + progress * 0.25, f"Downloading: {downloaded_mb:.1f} / {total_mb:.1f} MB")
-                
-                urllib.request.urlretrieve(url, str(dest_file), download_progress)
-                self._log(f"✓ Downloaded: {filename}")
-                
-                # Handle extraction
-                rom_path = dest_file
-                if filename.lower().endswith('.zip'):
-                    self._log("Extracting ZIP...")
-                    import zipfile
-                    extract_dir = dest_dir / "extracted"
-                    extract_dir.mkdir(exist_ok=True)
-                    with zipfile.ZipFile(dest_file, 'r') as zf:
-                        zf.extractall(extract_dir)
-                    for ext in ['.cue', '.chd', '.iso', '.bin', '.pbp']:
-                        found = list(extract_dir.rglob(f'*{ext}'))
-                        if found:
-                            rom_path = found[0]
-                            break
-                    self._log(f"✓ Extracted: {rom_path.name}")
-                elif filename.lower().endswith('.7z'):
-                    self._log("Extracting 7z...")
-                    extract_dir = dest_dir / "extracted"
-                    extract_dir.mkdir(exist_ok=True)
-                    subprocess.run(['7z', 'x', str(dest_file), f'-o{extract_dir}', '-y'], capture_output=True)
-                    for ext in ['.cue', '.chd', '.iso', '.bin', '.pbp']:
-                        found = list(extract_dir.rglob(f'*{ext}'))
-                        if found:
-                            rom_path = found[0]
-                            break
-                    self._log(f"✓ Extracted: {rom_path.name}")
-                
-                self._set_step("download", "done")
-                
-                # Step 2: DuckStation
-                self._set_step("duckstation", "active")
-                self._set_progress(0.35, "Preparing DuckStation...")
-                
-                appimage_path = OUTPUT_DIR / APPIMAGE_NAME
-                if not appimage_path.exists():
-                    self._log("Downloading DuckStation...")
-                    urllib.request.urlretrieve(DUCKSTATION_URL, str(appimage_path))
-                    os.chmod(appimage_path, 0o755)
-                    self._log("✓ DuckStation downloaded")
-                else:
-                    self._log("✓ DuckStation ready")
-                self._set_step("duckstation", "done")
-                
-                # Step 3: Copy ROM
-                self._set_step("copy_rom", "active")
-                self._set_progress(0.5, "Copying ROM...")
-                
-                game_dir.mkdir(parents=True, exist_ok=True)
-                (game_dir / "rom").mkdir(exist_ok=True)
-                (game_dir / "bios").mkdir(exist_ok=True)
-                # settings folder not needed for portable mode
-                
-                rom_path_obj = Path(rom_path)
-                if rom_path_obj.suffix.lower() == '.cue':
-                    shutil.copy2(rom_path_obj, game_dir / "rom")
-                    self._log(f"✓ Copied {rom_path_obj.name}")
-                    import re
-                    with open(rom_path_obj, 'r') as f:
-                        for line in f:
-                            if 'FILE' in line.upper():
-                                match = re.search(r'FILE\s+"?([^"]+)"?\s+', line, re.IGNORECASE)
-                                if match:
-                                    bin_name = match.group(1)
-                                    bin_path = rom_path_obj.parent / bin_name
-                                    if bin_path.exists():
-                                        shutil.copy2(bin_path, game_dir / "rom")
-                                        self._log(f"✓ Copied {bin_name}")
-                else:
-                    shutil.copy2(rom_path_obj, game_dir / "rom")
-                    self._log(f"✓ Copied {rom_path_obj.name}")
-                
-                self._set_step("copy_rom", "done")
-                
-                # Step 4: BIOS
-                self._set_step("copy_bios", "active")
-                self._set_progress(0.6, "Copying BIOS...")
-                
-                shutil.copy2(bios_path, game_dir / "bios")
-                bios_filename = bios_path.name
-                self._log(f"✓ Copied BIOS: {bios_filename}")
-                self._set_step("copy_bios", "done")
-                
-                # Step 5: Config
-                self._set_step("config", "active")
-                self._set_progress(0.7, "Creating configuration...")
-                
-                # Copy DuckStation
-                appimage_dest = game_dir / APPIMAGE_NAME
-                if appimage_dest.exists():
-                    appimage_dest.unlink()
-                shutil.copy2(appimage_path, appimage_dest)
-                appimage_dest.chmod(0o755)
-                self._log("✓ Copied DuckStation")
-                
-                (game_dir / "portable.txt").touch()
-                
-                rom_filename = rom_path_obj.name
-                bios_full_path = game_dir / "bios" / bios_filename
-                settings_content = get_settings_template(game_dir)
-                (game_dir / "settings.ini").write_text(settings_content)
-                self._log("✓ Created settings.ini")
-                
-                # Create launch script (use shlex.quote for safety)
-                launch_script = f"""#!/bin/bash
-cd {shlex.quote(str(game_dir))}
-./{APPIMAGE_NAME} -fullscreen -- {shlex.quote(f"./rom/{rom_filename}")}
-"""
-                launch_path = game_dir / "launch.sh"
-                launch_path.write_text(launch_script)
-                launch_path.chmod(0o755)
-                self._log("✓ Created launch.sh")
-                self.current_launch_path = launch_path
-                
-                self._set_step("config", "done")
-                
-                # Step 6: Add to Steam
-                self._set_step("steam", "active")
-                self._set_progress(0.85, "Adding to Steam...")
-                
-                shortcut_id = SteamShortcuts.add_shortcut(
-                    name=game_name,
-                    exe_path=str(launch_path),
-                    start_dir=str(game_dir),
-                    tags=["PS1", "PlayStation", "DuckStation"]
-                )
-                
-                if shortcut_id:
-                    self._log(f"✓ Added to Steam library")
-                    
-                    # Try SteamGridDB first for high-quality artwork
-                    sgdb_key = self._load_sgdb_key() or SteamGridDB.DEFAULT_API_KEY
-                    artwork_added = False
-                    
-                    clean_name = SteamGridDB.clean_game_name(game_name)
-                    self._log(f"  Searching SteamGridDB for: {clean_name}")
-                    if SteamGridDB.download_all_artwork(sgdb_key, game_name, shortcut_id):
-                        self._log(f"✓ Added high-quality artwork")
-                        artwork_added = True
-                    else:
-                        self._log(f"⚠ Game not found on SteamGridDB")
-                        self._log(f"  Try searching manually: steamgriddb.com/search/{clean_name.replace(' ', '%20')}")
-                    
-                    # Fall back to Archive.org thumbnail
-                    if not artwork_added:
-                        cover_url = f"https://archive.org/services/img/{item_id}"
-                        if SteamShortcuts.save_artwork(shortcut_id, cover_url, str(launch_path), game_name):
-                            self._log(f"✓ Added cover artwork (Archive.org)")
-                        else:
-                            self._log(f"⚠ Could not add cover artwork")
-                    
-                    self._log(f"  Restart Steam to see the game!")
-                else:
-                    self._log("⚠ Could not add to Steam automatically")
-                    self._log("  You can add it manually via 'Add Non-Steam Game'")
-                
-                self._set_step("steam", "done")
-                
-                # Done!
-                self._set_step("done", "done")
-                self._set_progress(1.0, "Complete!")
-                self._log(f"\n🎉 Successfully installed: {game_name}")
-                self._log(f"📁 Location: {game_dir}")
-                self._log(f"\n💡 Restart Steam, then find '{game_name}' in your library!")
-                
-                def finish():
-                    self.packaging_play_btn.set_sensitive(True)
-                    self.packaging_done_btn.set_sensitive(True)
-                GLib.idle_add(finish)
-                
-            except Exception as e:
-                self._log(f"\n❌ Error: {e}")
-                import traceback
-                self._log(traceback.format_exc())
-                self._set_progress(0, "Failed!")
-                def show_error():
-                    self.packaging_done_btn.set_sensitive(True)
-                GLib.idle_add(show_error)
-        
-        threading.Thread(target=install_thread, daemon=True).start()
-    
-    def _run_gba_installation(self, item_id, filename, game_name):
-        """Run GBA game installation with mGBA"""
-        self._reset_packaging_view(game_name, item_id)
-        self.stack.set_visible_child_name("packaging")
-        
-        DebugLog.get().set_ui_callback(self._log)
-        debug_log(f"Starting GBA installation: {game_name}")
-        
-        def install_thread():
-            try:
-                safe_game_name = game_name.replace(' ', '_')
-                game_dir = OUTPUT_DIR_GBA / safe_game_name
-                self.current_game_dir = game_dir
-                
-                # Step 1: Download
-                self._set_step("download", "active")
-                self._set_progress(0.05, "Downloading...")
-                self._log(f"Downloading: {filename}")
-                self._log(f"From: archive.org/download/{item_id}/")
-                
-                dest_dir = DOWNLOAD_DIR / item_id
-                dest_dir.mkdir(parents=True, exist_ok=True)
-                dest_file = dest_dir / filename
-                
-                encoded_filename = urllib.parse.quote(filename)
-                url = f"https://archive.org/download/{item_id}/{encoded_filename}"
-                
+
                 if not dest_file.exists():
                     self._log(f"Downloading from {url}")
-                    with urllib.request.urlopen(url, timeout=60) as response:
+                    with urllib.request.urlopen(url, timeout=120) as response:
                         total_size = int(response.headers.get('content-length', 0))
                         downloaded = 0
                         chunk_size = 1024 * 1024
-                        
+
                         with open(dest_file, 'wb') as f:
                             while True:
                                 chunk = response.read(chunk_size)
@@ -5092,29 +4888,32 @@ cd {shlex.quote(str(game_dir))}
                                 downloaded += len(chunk)
                                 if total_size > 0:
                                     pct = downloaded / total_size
-                                    self._set_progress(0.05 + pct * 0.35, f"Downloading... {int(pct*100)}%")
+                                    self._set_progress(0.05 + pct * 0.30, f"Downloading... {int(pct*100)}%")
                     self._log(f"✓ Downloaded {downloaded / 1024 / 1024:.1f} MB")
                 else:
                     self._log("✓ Already downloaded")
-                
+
                 self._set_step("download", "done")
-                
-                # Step 2: Get mGBA AppImage
-                self._set_step("duckstation", "active")  # Reusing step name for UI
-                self._set_progress(0.45, "Getting mGBA...")
-                
-                mgba_dir = EMULATOR_DIR / "mgba"
-                mgba_dir.mkdir(parents=True, exist_ok=True)
-                mgba_appimage = mgba_dir / "mGBA.AppImage"
-                
-                if not mgba_appimage.exists():
-                    self._log("Downloading mGBA AppImage...")
-                    mgba_url = SYSTEMS["gba"]["emulator_url"]
-                    
-                    with urllib.request.urlopen(mgba_url, timeout=120) as response:
+
+                # === Step 2: Get Emulator ===
+                self._set_step("duckstation", "active")
+                self._set_progress(0.40, f"Getting {system['emulator_name']}...")
+
+                if system["emulator_portable"]:
+                    # Portable mode: emulator stored in shared location, copied to game dir later
+                    emulator_cache = system["output_dir"] / system["emulator_name"]
+                else:
+                    # Shared mode: emulator in EMULATOR_DIR/subdir/
+                    emu_dir = EMULATOR_DIR / system["emulator_subdir"]
+                    emu_dir.mkdir(parents=True, exist_ok=True)
+                    emulator_cache = emu_dir / system["emulator_name"]
+
+                if not emulator_cache.exists():
+                    self._log(f"Downloading {system['emulator_name']}...")
+                    with urllib.request.urlopen(system["emulator_url"], timeout=120) as response:
                         total_size = int(response.headers.get('content-length', 0))
                         downloaded = 0
-                        with open(mgba_appimage, 'wb') as f:
+                        with open(emulator_cache, 'wb') as f:
                             while True:
                                 chunk = response.read(1024 * 64)
                                 if not chunk:
@@ -5123,139 +4922,197 @@ cd {shlex.quote(str(game_dir))}
                                 downloaded += len(chunk)
                                 if total_size > 0:
                                     pct = downloaded / total_size
-                                    self._set_progress(0.45 + pct * 0.05, f"Downloading mGBA... {int(pct*100)}%")
-                    
-                    mgba_appimage.chmod(0o755)
-                    self._log("✓ mGBA downloaded")
+                                    self._set_progress(0.40 + pct * 0.05, f"Downloading emulator... {int(pct*100)}%")
+                    emulator_cache.chmod(0o755)
+                    self._log(f"✓ {system['emulator_name']} downloaded")
                 else:
-                    self._log("✓ mGBA ready")
-                
+                    self._log(f"✓ {system['emulator_name']} ready")
+
                 self._set_step("duckstation", "done")
-                
-                # Step 3: Extract and copy ROM
+
+                # === Step 3: Extract and Copy ROM ===
                 self._set_step("copy_rom", "active")
-                self._set_progress(0.55, "Preparing ROM...")
-                
+                self._set_progress(0.50, "Preparing ROM...")
+
                 game_dir.mkdir(parents=True, exist_ok=True)
                 rom_dir = game_dir / "rom"
                 rom_dir.mkdir(exist_ok=True)
-                
+                if system["needs_bios"]:
+                    (game_dir / "bios").mkdir(exist_ok=True)
+
                 rom_path = None
-                
-                # Check if we need to extract
+                rom_extensions = tuple(system["rom_extensions"])
+
+                # Handle extraction
                 if filename.lower().endswith('.zip'):
                     self._log(f"Extracting {filename}...")
                     import zipfile
                     with zipfile.ZipFile(dest_file, 'r') as zf:
-                        # Find GBA/GBC/GB file inside
-                        gba_extensions = ('.gba', '.gbc', '.gb')
+                        # Find ROM file inside
                         for name in zf.namelist():
-                            if name.lower().endswith(gba_extensions):
+                            if name.lower().endswith(rom_extensions):
                                 zf.extract(name, rom_dir)
                                 rom_path = rom_dir / name
                                 self._log(f"✓ Extracted {name}")
                                 break
-                        
                         if not rom_path:
-                            # Just extract everything
                             zf.extractall(rom_dir)
                             for f in rom_dir.rglob('*'):
-                                if f.suffix.lower() in gba_extensions:
+                                if f.suffix.lower() in rom_extensions:
                                     rom_path = f
                                     break
+
                 elif filename.lower().endswith('.7z'):
                     self._log(f"Extracting {filename}...")
-                    import subprocess
-                    result = subprocess.run(['7z', 'x', '-y', f'-o{rom_dir}', str(dest_file)], 
+                    result = subprocess.run(['7z', 'x', '-y', f'-o{rom_dir}', str(dest_file)],
                                           capture_output=True, text=True)
                     if result.returncode != 0:
                         raise Exception(f"7z extraction failed: {result.stderr}")
-                    
-                    gba_extensions = ('.gba', '.gbc', '.gb')
                     for f in rom_dir.rglob('*'):
-                        if f.suffix.lower() in gba_extensions:
+                        if f.suffix.lower() in rom_extensions:
                             rom_path = f
                             self._log(f"✓ Extracted {f.name}")
                             break
+
                 else:
-                    # Direct ROM file
-                    shutil.copy2(dest_file, rom_dir)
-                    rom_path = rom_dir / filename
-                    self._log(f"✓ Copied {filename}")
-                
+                    # Direct ROM file - check if it matches expected extensions or just copy
+                    if filename.lower().endswith(rom_extensions):
+                        shutil.copy2(dest_file, rom_dir)
+                        rom_path = rom_dir / filename
+                        self._log(f"✓ Copied {filename}")
+                    else:
+                        # Try to find ROM inside (for archives with different extensions)
+                        shutil.copy2(dest_file, rom_dir)
+                        rom_path = rom_dir / filename
+                        self._log(f"✓ Copied {filename}")
+
                 if not rom_path or not rom_path.exists():
-                    raise Exception("Could not find GBA ROM file")
-                
+                    raise Exception(f"Could not find {system['short']} ROM file")
+
+                # Parse CUE files to find associated BIN files (PS1 specific)
+                if system.get("parse_cue_files") and rom_path.suffix.lower() == '.cue':
+                    import re
+                    with open(rom_path, 'r') as f:
+                        for line in f:
+                            if 'FILE' in line.upper():
+                                match = re.search(r'FILE\s+"?([^"]+)"?\s+', line, re.IGNORECASE)
+                                if match:
+                                    bin_name = match.group(1)
+                                    bin_path = dest_file.parent / bin_name
+                                    if not bin_path.exists():
+                                        # Check in extracted dir
+                                        bin_path = rom_path.parent / bin_name
+                                    if bin_path.exists() and bin_path != rom_path:
+                                        if not (rom_dir / bin_name).exists():
+                                            shutil.copy2(bin_path, rom_dir)
+                                            self._log(f"✓ Copied {bin_name}")
+
                 self._set_step("copy_rom", "done")
-                
-                # Step 4: Skip BIOS (mGBA has built-in)
+
+                # === Step 4: BIOS ===
                 self._set_step("copy_bios", "active")
-                self._set_progress(0.65, "BIOS check...")
-                self._log("✓ mGBA has built-in GBA BIOS")
+                self._set_progress(0.60, "BIOS check...")
+
+                if system["needs_bios"]:
+                    if bios_path:
+                        shutil.copy2(bios_path, game_dir / "bios")
+                        self._log(f"✓ Copied BIOS: {bios_path.name}")
+                    else:
+                        self._log("⚠ No BIOS provided")
+                else:
+                    self._log(f"✓ {system['emulator_name']} has built-in BIOS")
+
                 self._set_step("copy_bios", "done")
-                
-                # Step 5: Config / Launch script
+
+                # === Step 5: Config and Launch Script ===
                 self._set_step("config", "active")
-                self._set_progress(0.75, "Creating launcher...")
-                
-                # Create launch script (use shlex.quote for safety)
+                self._set_progress(0.70, "Creating launcher...")
+
+                # Determine emulator path for launch script
+                if system["emulator_portable"]:
+                    # Copy emulator to game dir
+                    emulator_dest = game_dir / system["emulator_name"]
+                    if emulator_dest.exists():
+                        emulator_dest.unlink()
+                    shutil.copy2(emulator_cache, emulator_dest)
+                    emulator_dest.chmod(0o755)
+                    self._log(f"✓ Copied {system['emulator_name']}")
+                    # Create portable.txt for DuckStation
+                    (game_dir / "portable.txt").touch()
+                    emulator_launch_path = f"./{system['emulator_name']}"
+                else:
+                    # Use shared emulator path
+                    emulator_launch_path = shlex.quote(str(emulator_cache))
+
+                # Generate settings.ini if needed (PS1 specific)
+                if system.get("needs_settings"):
+                    settings_content = get_settings_template(game_dir)
+                    (game_dir / "settings.ini").write_text(settings_content)
+                    self._log("✓ Created settings.ini")
+
+                # Build ROM path for launch script
+                if system.get("launch_relative_rom"):
+                    rom_launch_path = shlex.quote(f"./rom/{rom_path.name}")
+                else:
+                    rom_launch_path = shlex.quote(str(rom_path))
+
+                # Create launch script
                 launch_script = f"""#!/bin/bash
 cd {shlex.quote(str(game_dir))}
-{shlex.quote(str(mgba_appimage))} -f {shlex.quote(str(rom_path))}
+{emulator_launch_path} {system['launch_args']} {rom_launch_path}
 """
                 launch_path = game_dir / "launch.sh"
                 launch_path.write_text(launch_script)
                 launch_path.chmod(0o755)
                 self._log("✓ Created launch.sh")
                 self.current_launch_path = launch_path
-                
+
                 self._set_step("config", "done")
-                
-                # Step 6: Add to Steam
+
+                # === Step 6: Add to Steam ===
                 self._set_step("steam", "active")
                 self._set_progress(0.85, "Adding to Steam...")
-                
+
                 shortcut_id = SteamShortcuts.add_shortcut(
                     name=game_name,
                     exe_path=str(launch_path),
                     start_dir=str(game_dir),
-                    tags=["GBA", "Game Boy Advance", "mGBA"]
+                    tags=system["tags"]
                 )
-                
+
                 if shortcut_id:
                     self._log(f"✓ Added to Steam library")
-                    
+
                     sgdb_key = self._load_sgdb_key() or SteamGridDB.DEFAULT_API_KEY
                     clean_name = SteamGridDB.clean_game_name(game_name)
                     self._log(f"  Searching SteamGridDB for: {clean_name}")
-                    
+
                     if SteamGridDB.download_all_artwork(sgdb_key, game_name, shortcut_id):
                         self._log(f"✓ Added high-quality artwork")
                     else:
                         self._log(f"⚠ Game not found on SteamGridDB")
-                        # Try Archive.org thumbnail as fallback
                         cover_url = f"https://archive.org/services/img/{item_id}"
                         if SteamShortcuts.save_artwork(shortcut_id, cover_url, str(launch_path), game_name):
                             self._log(f"✓ Added cover artwork (Archive.org)")
-                    
+
                     self._log(f"  Restart Steam to see the game!")
                 else:
                     self._log("⚠ Could not add to Steam automatically")
-                
+
                 self._set_step("steam", "done")
-                
-                # Done!
+
+                # === Done! ===
                 self._set_step("done", "done")
                 self._set_progress(1.0, "Complete!")
                 self._log(f"\n🎉 Successfully installed: {game_name}")
                 self._log(f"📁 Location: {game_dir}")
                 self._log(f"\n💡 Restart Steam, then find '{game_name}' in your library!")
-                
+
                 def finish():
                     self.packaging_play_btn.set_sensitive(True)
                     self.packaging_done_btn.set_sensitive(True)
                 GLib.idle_add(finish)
-                
+
             except Exception as e:
                 self._log(f"\n❌ Error: {e}")
                 import traceback
@@ -5264,8 +5121,17 @@ cd {shlex.quote(str(game_dir))}
                 def show_error():
                     self.packaging_done_btn.set_sensitive(True)
                 GLib.idle_add(show_error)
-        
+
         threading.Thread(target=install_thread, daemon=True).start()
+
+    # Legacy methods - redirect to unified _run_system_installation()
+    def _run_installation(self, item_id, filename, game_name, bios_path):
+        """Legacy wrapper for PS1 - redirects to unified installation"""
+        self._run_system_installation("ps1", item_id, filename, game_name, bios_path)
+
+    def _run_gba_installation(self, item_id, filename, game_name):
+        """Legacy wrapper for GBA - redirects to unified installation"""
+        self._run_system_installation("gba", item_id, filename, game_name)
 
     def _start_local_packaging(self, rom_path, bios_path, game_name):
         """Package a local ROM"""
