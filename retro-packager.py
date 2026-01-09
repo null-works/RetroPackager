@@ -709,52 +709,52 @@ window {{
 /* Glass card - frosted glass effect */
 .card {{
     background: linear-gradient(180deg,
-        rgba(255, 255, 255, 0.45) 0%,
-        rgba(255, 255, 255, 0.25) 100%);
+        rgba(255, 255, 255, 0.25) 0%,
+        rgba(255, 255, 255, 0.12) 100%);
     border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.4);
     padding: 16px;
-    box-shadow: 0 8px 32px rgba(30, 100, 180, 0.2),
-                inset 0 1px 0 rgba(255, 255, 255, 0.8),
-                inset 0 -1px 0 rgba(255, 255, 255, 0.3);
+    box-shadow: 0 8px 32px rgba(30, 100, 180, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.5),
+                inset 0 -1px 0 rgba(255, 255, 255, 0.2);
 }}
 
-/* Glossy bubble buttons - signature Aero style */
+/* Glossy bubble buttons - signature Aero style - semi-transparent */
 .menu-button {{
     background: linear-gradient(180deg,
-        rgba(255, 255, 255, 0.7) 0%,
-        rgba(255, 255, 255, 0.4) 45%,
-        rgba(200, 230, 255, 0.5) 55%,
-        rgba(150, 210, 255, 0.6) 100%);
+        rgba(255, 255, 255, 0.35) 0%,
+        rgba(255, 255, 255, 0.15) 45%,
+        rgba(200, 230, 255, 0.2) 55%,
+        rgba(150, 210, 255, 0.25) 100%);
     border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.5);
     padding: 14px 18px;
-    box-shadow: 0 4px 20px rgba(30, 100, 180, 0.25),
-                inset 0 2px 0 rgba(255, 255, 255, 0.9),
-                inset 0 -2px 4px rgba(100, 180, 255, 0.3);
+    box-shadow: 0 4px 20px rgba(30, 100, 180, 0.15),
+                inset 0 2px 0 rgba(255, 255, 255, 0.5),
+                inset 0 -2px 4px rgba(100, 180, 255, 0.15);
 }}
 
 .menu-button:hover {{
     background: linear-gradient(180deg,
-        rgba(255, 255, 255, 0.85) 0%,
-        rgba(255, 255, 255, 0.5) 45%,
-        rgba(180, 230, 255, 0.6) 55%,
-        rgba(130, 200, 255, 0.7) 100%);
-    border-color: rgba(255, 255, 255, 0.9);
-    box-shadow: 0 6px 25px rgba(0, 168, 232, 0.35),
-                inset 0 2px 0 rgba(255, 255, 255, 1),
-                inset 0 -2px 6px rgba(100, 180, 255, 0.4);
+        rgba(255, 255, 255, 0.5) 0%,
+        rgba(255, 255, 255, 0.25) 45%,
+        rgba(180, 230, 255, 0.3) 55%,
+        rgba(130, 200, 255, 0.35) 100%);
+    border-color: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 6px 25px rgba(0, 168, 232, 0.25),
+                inset 0 2px 0 rgba(255, 255, 255, 0.6),
+                inset 0 -2px 6px rgba(100, 180, 255, 0.2);
 }}
 
 .menu-button:focus {{
     background: linear-gradient(180deg,
-        rgba(200, 240, 255, 0.9) 0%,
-        rgba(150, 220, 255, 0.6) 45%,
-        rgba(100, 200, 255, 0.7) 55%,
-        rgba(80, 180, 255, 0.8) 100%);
+        rgba(200, 240, 255, 0.5) 0%,
+        rgba(150, 220, 255, 0.3) 45%,
+        rgba(100, 200, 255, 0.35) 55%,
+        rgba(80, 180, 255, 0.4) 100%);
     border: 2px solid {COLORS['accent_light']};
-    box-shadow: 0 0 30px rgba(0, 168, 232, 0.5),
-                inset 0 2px 0 rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 30px rgba(0, 168, 232, 0.4),
+                inset 0 2px 0 rgba(255, 255, 255, 0.5);
     outline: none;
 }}
 
@@ -825,36 +825,36 @@ button label {{
     outline: none;
 }}
 
-/* Secondary glass button */
+/* Secondary glass button - more transparent */
 .flat-button {{
     background: linear-gradient(180deg,
-        rgba(255, 255, 255, 0.6) 0%,
-        rgba(255, 255, 255, 0.35) 45%,
-        rgba(200, 230, 255, 0.4) 100%);
+        rgba(255, 255, 255, 0.3) 0%,
+        rgba(255, 255, 255, 0.15) 45%,
+        rgba(200, 230, 255, 0.2) 100%);
     color: {COLORS['text']};
-    border: 1px solid rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.5);
     border-radius: 10px;
     padding: 10px 20px;
-    box-shadow: 0 3px 12px rgba(30, 100, 180, 0.2),
-                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    box-shadow: 0 3px 12px rgba(30, 100, 180, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }}
 
 .flat-button:hover {{
     background: linear-gradient(180deg,
-        rgba(255, 255, 255, 0.75) 0%,
-        rgba(255, 255, 255, 0.45) 45%,
-        rgba(180, 220, 255, 0.5) 100%);
-    border-color: rgba(255, 255, 255, 0.9);
-    box-shadow: 0 5px 18px rgba(0, 168, 232, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        rgba(255, 255, 255, 0.45) 0%,
+        rgba(255, 255, 255, 0.25) 45%,
+        rgba(180, 220, 255, 0.3) 100%);
+    border-color: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 5px 18px rgba(0, 168, 232, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }}
 
 .flat-button:focus {{
     background: linear-gradient(180deg,
-        rgba(200, 240, 255, 0.8) 0%,
-        rgba(160, 220, 255, 0.5) 100%);
+        rgba(200, 240, 255, 0.4) 0%,
+        rgba(160, 220, 255, 0.25) 100%);
     border: 2px solid {COLORS['accent']};
-    box-shadow: 0 0 20px rgba(0, 168, 232, 0.4);
+    box-shadow: 0 0 20px rgba(0, 168, 232, 0.3);
     outline: none;
 }}
 
@@ -960,46 +960,46 @@ scrollbar slider:hover {{
 /* Game cards - glossy glass tiles */
 .game-card {{
     background: linear-gradient(180deg,
-        rgba(255, 255, 255, 0.5) 0%,
-        rgba(255, 255, 255, 0.3) 45%,
-        rgba(200, 230, 255, 0.35) 100%);
+        rgba(255, 255, 255, 0.3) 0%,
+        rgba(255, 255, 255, 0.15) 45%,
+        rgba(200, 230, 255, 0.2) 100%);
     border-radius: 14px;
     padding: 4px;
-    border: 2px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 6px 20px rgba(30, 100, 180, 0.25),
-                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 6px 20px rgba(30, 100, 180, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }}
 
 .game-card:hover {{
     background: linear-gradient(180deg,
-        rgba(255, 255, 255, 0.65) 0%,
-        rgba(255, 255, 255, 0.4) 45%,
-        rgba(180, 220, 255, 0.45) 100%);
-    border-color: rgba(255, 255, 255, 0.8);
-    box-shadow: 0 8px 25px rgba(0, 168, 232, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        rgba(255, 255, 255, 0.45) 0%,
+        rgba(255, 255, 255, 0.25) 45%,
+        rgba(180, 220, 255, 0.3) 100%);
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 8px 25px rgba(0, 168, 232, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }}
 
 flowboxchild:selected .game-card {{
     background: linear-gradient(180deg,
-        rgba(150, 220, 255, 0.6) 0%,
-        rgba(100, 200, 255, 0.5) 100%);
+        rgba(150, 220, 255, 0.4) 0%,
+        rgba(100, 200, 255, 0.3) 100%);
     border-color: {COLORS['accent_light']};
 }}
 
 flowboxchild:focus .game-card {{
     border-color: {COLORS['accent']};
-    box-shadow: 0 0 25px rgba(0, 168, 232, 0.5),
-                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 25px rgba(0, 168, 232, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }}
 
 flowboxchild:selected:focus .game-card {{
     background: linear-gradient(180deg,
-        rgba(130, 210, 255, 0.7) 0%,
-        rgba(80, 180, 255, 0.6) 100%);
+        rgba(130, 210, 255, 0.5) 0%,
+        rgba(80, 180, 255, 0.4) 100%);
     border-color: white;
-    box-shadow: 0 0 35px rgba(0, 200, 255, 0.6),
-                inset 0 2px 0 rgba(255, 255, 255, 0.7);
+    box-shadow: 0 0 35px rgba(0, 200, 255, 0.5),
+                inset 0 2px 0 rgba(255, 255, 255, 0.5);
 }}
 
 .game-title {{
@@ -1159,14 +1159,14 @@ dialog {{
 
 .dialog-content {{
     background: linear-gradient(180deg,
-        rgba(255, 255, 255, 0.5) 0%,
-        rgba(255, 255, 255, 0.3) 100%);
+        rgba(255, 255, 255, 0.3) 0%,
+        rgba(255, 255, 255, 0.15) 100%);
     border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.5);
     padding: 24px;
     margin: 20px;
-    box-shadow: 0 8px 40px rgba(30, 100, 180, 0.25),
-                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    box-shadow: 0 8px 40px rgba(30, 100, 180, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }}
 
 .dialog-title {{
@@ -2257,7 +2257,7 @@ class RetroPackagerApp(Gtk.Window):
                 'speed': random.uniform(0.001, 0.004),
                 'wobble': random.uniform(0, 6.28),
                 'wobble_speed': random.uniform(0.02, 0.05),
-                'opacity': random.uniform(0.1, 0.3),
+                'opacity': random.uniform(0.4, 0.7),
             })
 
     def _animate_bubbles(self):
@@ -2275,7 +2275,7 @@ class RetroPackagerApp(Gtk.Window):
                 bubble['x'] = random.uniform(0, 1)
                 bubble['size'] = random.uniform(20, 80)
                 bubble['speed'] = random.uniform(0.001, 0.004)
-                bubble['opacity'] = random.uniform(0.1, 0.3)
+                bubble['opacity'] = random.uniform(0.4, 0.7)
 
         # Trigger redraw
         if hasattr(self, 'bubble_canvas'):
@@ -2297,8 +2297,8 @@ class RetroPackagerApp(Gtk.Window):
             # Draw bubble with gradient
             # Outer glow
             pattern = cairo.RadialGradient(x, y, 0, x, y, size)
-            pattern.add_color_stop_rgba(0, 0.8, 0.95, 1, bubble['opacity'] * 0.5)
-            pattern.add_color_stop_rgba(0.7, 0.6, 0.9, 1, bubble['opacity'] * 0.3)
+            pattern.add_color_stop_rgba(0, 0.8, 0.95, 1, bubble['opacity'] * 0.85)
+            pattern.add_color_stop_rgba(0.7, 0.6, 0.9, 1, bubble['opacity'] * 0.6)
             pattern.add_color_stop_rgba(1, 0.5, 0.85, 1, 0)
             cr.set_source(pattern)
             cr.arc(x, y, size, 0, 2 * math.pi)
@@ -2312,14 +2312,14 @@ class RetroPackagerApp(Gtk.Window):
                 highlight_x, highlight_y, 0,
                 highlight_x, highlight_y, highlight_size
             )
-            pattern2.add_color_stop_rgba(0, 1, 1, 1, bubble['opacity'] * 0.8)
+            pattern2.add_color_stop_rgba(0, 1, 1, 1, bubble['opacity'] * 1.0)
             pattern2.add_color_stop_rgba(1, 1, 1, 1, 0)
             cr.set_source(pattern2)
             cr.arc(highlight_x, highlight_y, highlight_size, 0, 2 * math.pi)
             cr.fill()
 
             # Edge ring
-            cr.set_source_rgba(0.7, 0.92, 1, bubble['opacity'] * 0.4)
+            cr.set_source_rgba(0.7, 0.92, 1, bubble['opacity'] * 0.6)
             cr.set_line_width(1.5)
             cr.arc(x, y, size - 2, 0, 2 * math.pi)
             cr.stroke()
