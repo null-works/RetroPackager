@@ -2140,7 +2140,20 @@ class SteamGridDB:
                     debug_log(f"Saved logo to: {filepath}")
             except Exception as e:
                 debug_log(f"Error downloading logo: {e}")
-        
+
+        # Get and save icon (for Big Picture guide button overlay)
+        icon_url = SteamGridDB.get_icon(api_key, game_id)
+        if icon_url:
+            try:
+                response = requests.get(icon_url, timeout=30)
+                if response.status_code == 200:
+                    filepath = grid_path / f"{shortcut_id}_icon.png"
+                    with open(filepath, 'wb') as f:
+                        f.write(response.content)
+                    debug_log(f"Saved icon to: {filepath}")
+            except Exception as e:
+                debug_log(f"Error downloading icon: {e}")
+
         debug_log(f"download_all_artwork complete, success={success}")
         return success
 
