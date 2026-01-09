@@ -1012,7 +1012,7 @@ MSAA = 0
 
 [Rosalie's Mupen GUI - Input Plugin Profile 0]
 Input_PluggedIn = True
-Input_DeviceType = 4
+Input_DeviceType = 2
 Input_Deadzone = 15
 Input_Sensitivity = 100
 Input_Pak = 0
