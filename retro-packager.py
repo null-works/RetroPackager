@@ -1228,6 +1228,157 @@ textview text {{
     background: transparent;
     color: {COLORS['text']};
 }}
+
+/* Combobox / Dropdown styling */
+combobox {{
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.85) 0%,
+        rgba(255, 255, 255, 0.7) 100%);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+}}
+
+combobox button {{
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.7) 0%,
+        rgba(255, 255, 255, 0.5) 100%);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    padding: 8px 12px;
+}}
+
+combobox button:hover {{
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.85) 0%,
+        rgba(255, 255, 255, 0.6) 100%);
+}}
+
+combobox cellview {{
+    color: {COLORS['text']};
+}}
+
+combobox arrow {{
+    color: {COLORS['text']};
+}}
+
+/* Dropdown/Popup menu styling */
+popover, popover.background {{
+    background: linear-gradient(180deg,
+        rgba(230, 245, 255, 0.98) 0%,
+        rgba(200, 230, 255, 0.95) 100%);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 32px rgba(30, 100, 180, 0.3);
+}}
+
+popover contents {{
+    background: transparent;
+}}
+
+popover modelbutton {{
+    background: transparent;
+    padding: 8px 16px;
+    border-radius: 8px;
+    color: {COLORS['text']};
+}}
+
+popover modelbutton:hover {{
+    background: linear-gradient(180deg,
+        rgba(150, 220, 255, 0.5) 0%,
+        rgba(100, 200, 255, 0.4) 100%);
+}}
+
+/* Menu styling */
+menu {{
+    background: linear-gradient(180deg,
+        rgba(230, 245, 255, 0.98) 0%,
+        rgba(200, 230, 255, 0.95) 100%);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 32px rgba(30, 100, 180, 0.3);
+    padding: 8px;
+}}
+
+menu menuitem {{
+    background: transparent;
+    padding: 8px 16px;
+    border-radius: 8px;
+    color: {COLORS['text']};
+}}
+
+menu menuitem:hover {{
+    background: linear-gradient(180deg,
+        rgba(150, 220, 255, 0.5) 0%,
+        rgba(100, 200, 255, 0.4) 100%);
+}}
+
+menu menuitem label {{
+    color: {COLORS['text']};
+}}
+
+/* File chooser dialog styling */
+filechooser {{
+    background: linear-gradient(180deg,
+        {COLORS['sky_top']} 0%,
+        {COLORS['sky_mid']} 50%,
+        {COLORS['sky_bottom']} 100%);
+}}
+
+filechooser .view {{
+    background: rgba(255, 255, 255, 0.7);
+    color: {COLORS['text']};
+}}
+
+filechooser list {{
+    background: rgba(255, 255, 255, 0.5);
+}}
+
+filechooser row {{
+    background: transparent;
+    color: {COLORS['text']};
+}}
+
+filechooser row:selected {{
+    background: linear-gradient(180deg,
+        rgba(150, 220, 255, 0.6) 0%,
+        rgba(100, 200, 255, 0.5) 100%);
+}}
+
+/* Placesidebar (file chooser sidebar) */
+placessidebar {{
+    background: rgba(255, 255, 255, 0.4);
+}}
+
+placessidebar row {{
+    background: transparent;
+    color: {COLORS['text']};
+}}
+
+placessidebar row:selected {{
+    background: linear-gradient(180deg,
+        rgba(150, 220, 255, 0.6) 0%,
+        rgba(100, 200, 255, 0.5) 100%);
+}}
+
+/* Pathbar in file chooser */
+pathbar button {{
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.6) 0%,
+        rgba(255, 255, 255, 0.4) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 6px;
+    color: {COLORS['text']};
+}}
+
+pathbar button:hover {{
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.8) 0%,
+        rgba(255, 255, 255, 0.5) 100%);
+}}
+
+pathbar button label {{
+    color: {COLORS['text']};
+}}
 """
 
 
