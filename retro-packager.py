@@ -3114,10 +3114,11 @@ class RetroPackagerApp(Gtk.Window):
             h_draw = ImageDraw.Draw(highlight)
             h_size = int(size * 0.35)
             h_x, h_y = int(size * 0.28), int(size * 0.22)
+            # Draw concentric ellipses from outside in, getting brighter
+            cx, cy = h_x + h_size // 2, h_y + h_size // 2
             for i in range(h_size, 0, -1):
                 alpha = int(220 * (i / h_size) ** 0.5)
-                h_draw.ellipse([h_x + (h_size - i), h_y + (h_size - i),
-                               h_x + h_size + i - (h_size - i), h_y + h_size + i - (h_size - i)],
+                h_draw.ellipse([cx - i, cy - i, cx + i, cy + i],
                               fill=(255, 255, 255, alpha))
             
             orb = Image.alpha_composite(orb, highlight)
