@@ -680,6 +680,11 @@ CSS = f"""
 /* === FRUTIGER AERO - BRIGHT SKY THEME === */
 /* Bright sky gradient with glossy glass elements and bubbly aesthetic */
 
+/* Base text colors for all elements */
+* {{
+    color: {COLORS['text']};
+}}
+
 window {{
     background: linear-gradient(180deg,
         {COLORS['sky_top']} 0%,
@@ -764,6 +769,16 @@ window {{
     color: {COLORS['text_dim']};
 }}
 
+/* Ensure all labels are visible */
+label {{
+    color: {COLORS['text']};
+}}
+
+/* Button labels need explicit color */
+button label {{
+    color: inherit;
+}}
+
 /* Vibrant glossy accent button - like a shiny orb */
 .accent-button {{
     background: linear-gradient(180deg,
@@ -780,6 +795,10 @@ window {{
     box-shadow: 0 6px 20px rgba(0, 168, 232, 0.5),
                 inset 0 2px 0 rgba(255, 255, 255, 0.5),
                 inset 0 -2px 4px rgba(0, 80, 160, 0.3);
+}}
+
+.accent-button label {{
+    color: white;
 }}
 
 .accent-button:hover {{
@@ -836,6 +855,10 @@ window {{
     border: 2px solid {COLORS['accent']};
     box-shadow: 0 0 20px rgba(0, 168, 232, 0.4);
     outline: none;
+}}
+
+.flat-button label {{
+    color: {COLORS['text']};
 }}
 
 /* Text input - frosted glass */
@@ -1079,6 +1102,14 @@ flowboxchild:selected:focus .game-card {{
     outline: none;
 }}
 
+.system-button label {{
+    color: {COLORS['text_dim']};
+}}
+
+.system-button:checked label {{
+    color: white;
+}}
+
 /* Exit button - danger red with glossy orb style */
 .exit-button {{
     background: linear-gradient(180deg,
@@ -1111,6 +1142,10 @@ flowboxchild:selected:focus .game-card {{
     border: 2px solid white;
     box-shadow: 0 0 25px rgba(200, 80, 80, 0.6);
     outline: none;
+}}
+
+.exit-button label {{
+    color: white;
 }}
 
 /* Dialog styling - fullscreen themed dialogs */
