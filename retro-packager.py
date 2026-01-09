@@ -1112,6 +1112,87 @@ flowboxchild:selected:focus .game-card {{
     box-shadow: 0 0 25px rgba(200, 80, 80, 0.6);
     outline: none;
 }}
+
+/* Dialog styling - fullscreen themed dialogs */
+dialog {{
+    background: linear-gradient(180deg,
+        {COLORS['sky_top']} 0%,
+        {COLORS['sky_mid']} 50%,
+        {COLORS['sky_bottom']} 100%);
+}}
+
+.dialog-content {{
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.5) 0%,
+        rgba(255, 255, 255, 0.3) 100%);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    padding: 24px;
+    margin: 20px;
+    box-shadow: 0 8px 40px rgba(30, 100, 180, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}}
+
+.dialog-title {{
+    font-size: 24px;
+    font-weight: bold;
+    color: {COLORS['text']};
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+}}
+
+.dialog-message {{
+    font-size: 14px;
+    color: {COLORS['text']};
+}}
+
+.dialog-secondary {{
+    font-size: 12px;
+    color: {COLORS['text_dim']};
+}}
+
+/* Warning dialog accent */
+.dialog-warning {{
+    border-left: 4px solid {COLORS['warning']};
+}}
+
+/* Listbox styling */
+list, listbox {{
+    background: transparent;
+}}
+
+list row, listbox row {{
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.5) 0%,
+        rgba(255, 255, 255, 0.3) 100%);
+    border-radius: 10px;
+    margin: 4px 0;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}}
+
+list row:hover, listbox row:hover {{
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.7) 0%,
+        rgba(255, 255, 255, 0.4) 100%);
+    border-color: rgba(255, 255, 255, 0.8);
+}}
+
+list row:selected, listbox row:selected {{
+    background: linear-gradient(180deg,
+        rgba(150, 220, 255, 0.6) 0%,
+        rgba(100, 200, 255, 0.5) 100%);
+    border-color: {COLORS['accent_light']};
+}}
+
+/* Text view styling */
+textview {{
+    background: rgba(255, 255, 255, 0.8);
+    color: {COLORS['text']};
+}}
+
+textview text {{
+    background: transparent;
+    color: {COLORS['text']};
+}}
 """
 
 
@@ -2525,30 +2606,59 @@ class RetroPackagerApp(Gtk.Window):
         game_name = re.sub(r'\s*\([^)]*\)', '', game_name)
         game_name = re.sub(r'\s*\[[^\]]*\]', '', game_name)
         game_name = game_name.strip()
-        
-        # Ask for name
+
+        # Ask for name - fullscreen themed dialog
         name_dialog = Gtk.Dialog(title="Game Name", parent=self, flags=Gtk.DialogFlags.MODAL)
-        name_dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, "Install", Gtk.ResponseType.OK)
-        
-        content = name_dialog.get_content_area()
-        content.set_spacing(12)
-        content.set_margin_start(20)
-        content.set_margin_end(20)
-        content.set_margin_top(20)
-        content.set_margin_bottom(20)
-        
-        label = Gtk.Label(label="Enter name for this game:")
-        label.set_halign(Gtk.Align.START)
-        content.pack_start(label, False, False, 0)
-        
+        name_dialog.fullscreen()
+
+        main_box = name_dialog.get_content_area()
+        main_box.set_valign(Gtk.Align.CENTER)
+        main_box.set_halign(Gtk.Align.CENTER)
+
+        # Content card
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        content.get_style_context().add_class('dialog-content')
+        content.set_size_request(500, -1)
+
+        # Title
+        title_label = Gtk.Label(label="Enter Game Name")
+        title_label.get_style_context().add_class('dialog-title')
+        title_label.set_halign(Gtk.Align.START)
+        content.pack_start(title_label, False, False, 0)
+
+        # Subtitle
+        sub_label = Gtk.Label(label=f"File: {rom_path.name}")
+        sub_label.get_style_context().add_class('dialog-secondary')
+        sub_label.set_halign(Gtk.Align.START)
+        sub_label.set_ellipsize(Pango.EllipsizeMode.MIDDLE)
+        content.pack_start(sub_label, False, False, 0)
+
+        # Entry
         name_entry = Gtk.Entry()
         name_entry.set_text(game_name)
         name_entry.get_style_context().add_class('entry')
         content.pack_start(name_entry, False, False, 0)
-        
+
+        # Buttons
+        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        btn_box.set_halign(Gtk.Align.END)
+
+        cancel_btn = Gtk.Button(label="Cancel")
+        cancel_btn.get_style_context().add_class('flat-button')
+        cancel_btn.connect('clicked', lambda w: name_dialog.response(Gtk.ResponseType.CANCEL))
+        btn_box.pack_start(cancel_btn, False, False, 0)
+
+        install_btn = Gtk.Button(label="Install")
+        install_btn.get_style_context().add_class('accent-button')
+        install_btn.connect('clicked', lambda w: name_dialog.response(Gtk.ResponseType.OK))
+        btn_box.pack_start(install_btn, False, False, 0)
+
+        content.pack_start(btn_box, False, False, 0)
+
+        main_box.pack_start(content, False, False, 0)
         name_dialog.show_all()
         response = name_dialog.run()
-        
+
         if response == Gtk.ResponseType.OK:
             game_name = name_entry.get_text().strip()
             name_dialog.destroy()
@@ -2558,45 +2668,55 @@ class RetroPackagerApp(Gtk.Window):
             name_dialog.destroy()
     
     def on_view_games(self):
-        """Show installed games with uninstall option"""
+        """Show installed games with uninstall option - fullscreen dialog"""
         dialog = Gtk.Dialog(
             title="Installed Games",
             parent=self,
             flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT
         )
-        dialog.add_buttons(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
-        dialog.set_default_size(500, 400)
-        
-        content = dialog.get_content_area()
-        content.set_spacing(12)
-        content.set_margin_start(16)
-        content.set_margin_end(16)
-        content.set_margin_top(16)
-        content.set_margin_bottom(16)
-        
-        # Header
-        header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        
-        title = Gtk.Label(label="Installed PS1 Games")
-        title.get_style_context().add_class('menu-button-title')
-        title.set_halign(Gtk.Align.START)
-        header_box.pack_start(title, True, True, 0)
-        
+        dialog.fullscreen()
+
+        main_box = dialog.get_content_area()
+        main_box.set_spacing(0)
+
+        # Header bar with back button
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        header.set_margin_start(20)
+        header.set_margin_end(20)
+        header.set_margin_top(20)
+        header.set_margin_bottom(10)
+
+        back_btn = Gtk.Button(label="← Back")
+        back_btn.get_style_context().add_class('flat-button')
+        back_btn.connect('clicked', lambda w: dialog.destroy())
+        header.pack_start(back_btn, False, False, 0)
+
+        title = Gtk.Label(label="Installed Games")
+        title.get_style_context().add_class('dialog-title')
+        header.pack_start(title, True, True, 0)
+
         open_folder_btn = Gtk.Button(label="📁 Open Folder")
         open_folder_btn.get_style_context().add_class('flat-button')
         open_folder_btn.connect('clicked', lambda w: subprocess.Popen(['xdg-open', str(OUTPUT_DIR)]))
-        header_box.pack_end(open_folder_btn, False, False, 0)
-        
-        content.pack_start(header_box, False, False, 0)
-        
-        # Game list
+        header.pack_end(open_folder_btn, False, False, 0)
+
+        main_box.pack_start(header, False, False, 0)
+
+        # Scrollable content area
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroll.set_vexpand(True)
-        
+
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        content.set_margin_start(20)
+        content.set_margin_end(20)
+        content.set_margin_top(10)
+        content.set_margin_bottom(20)
+
+        # Game list
         listbox = Gtk.ListBox()
         listbox.set_selection_mode(Gtk.SelectionMode.NONE)
-        
+
         # Find installed games
         games_found = False
         if OUTPUT_DIR.exists():
@@ -2604,19 +2724,19 @@ class RetroPackagerApp(Gtk.Window):
                 if game_dir.is_dir() and (game_dir / "launch.sh").exists():
                     games_found = True
                     row = Gtk.ListBoxRow()
-                    
+
                     box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-                    box.set_margin_start(8)
-                    box.set_margin_end(8)
-                    box.set_margin_top(8)
-                    box.set_margin_bottom(8)
-                    
+                    box.set_margin_start(12)
+                    box.set_margin_end(12)
+                    box.set_margin_top(10)
+                    box.set_margin_bottom(10)
+
                     # Game name
                     name_label = Gtk.Label(label=game_dir.name)
                     name_label.set_halign(Gtk.Align.START)
                     name_label.get_style_context().add_class('menu-button-title')
                     box.pack_start(name_label, True, True, 0)
-                    
+
                     # Calculate size
                     try:
                         size = sum(f.stat().st_size for f in game_dir.rglob('*') if f.is_file())
@@ -2625,26 +2745,28 @@ class RetroPackagerApp(Gtk.Window):
                         size_label.get_style_context().add_class('subtitle')
                         box.pack_start(size_label, False, False, 0)
                     except OSError:
-                        # File access error during size calculation; skip showing size
                         pass
-                    
+
                     # Uninstall button
                     uninstall_btn = Gtk.Button(label="🗑️ Uninstall")
                     uninstall_btn.get_style_context().add_class('flat-button')
                     uninstall_btn.connect('clicked', lambda w, gd=game_dir, d=dialog: self._uninstall_game(gd, d))
                     box.pack_end(uninstall_btn, False, False, 0)
-                    
+
                     row.add(box)
                     listbox.add(row)
-        
+
         if not games_found:
             empty_label = Gtk.Label(label="No games installed yet.\nUse Archive.org or Package Local ROM to add games.")
             empty_label.set_justify(Gtk.Justification.CENTER)
-            listbox.add(empty_label)
-        
-        scroll.add(listbox)
-        content.pack_start(scroll, True, True, 0)
-        
+            empty_label.get_style_context().add_class('dialog-message')
+            content.pack_start(empty_label, True, True, 0)
+        else:
+            content.pack_start(listbox, True, True, 0)
+
+        scroll.add(content)
+        main_box.pack_start(scroll, True, True, 0)
+
         dialog.show_all()
         dialog.run()
         dialog.destroy()
@@ -2654,47 +2776,41 @@ class RetroPackagerApp(Gtk.Window):
         # Get game name (directory name, but with underscores converted back to spaces for display)
         game_name = game_dir.name.replace('_', ' ')
 
-        confirm = Gtk.MessageDialog(
-            transient_for=parent_dialog,
-            flags=Gtk.DialogFlags.MODAL,
-            message_type=Gtk.MessageType.WARNING,
-            buttons=Gtk.ButtonsType.YES_NO,
-            text=f"Uninstall {game_name}?"
-        )
-        confirm.format_secondary_text("This will delete the game files and remove it from Steam.")
+        if not self.show_confirm(
+            f"Uninstall {game_name}?",
+            "This will delete the game files and remove it from Steam.",
+            warning=True
+        ):
+            return
 
-        response = confirm.run()
-        confirm.destroy()
+        try:
+            # First, try to remove from Steam shortcuts
+            # Try both the display name and directory name variants
+            launch_path = game_dir / "launch.sh"
+            steam_removed = False
 
-        if response == Gtk.ResponseType.YES:
-            try:
-                # First, try to remove from Steam shortcuts
-                # Try both the display name and directory name variants
-                launch_path = game_dir / "launch.sh"
-                steam_removed = False
+            if launch_path.exists():
+                steam_removed = SteamShortcuts.remove_shortcut(exe_path=str(launch_path))
 
-                if launch_path.exists():
-                    steam_removed = SteamShortcuts.remove_shortcut(exe_path=str(launch_path))
+            # Also try by name (with underscores as stored, and with spaces)
+            if not steam_removed:
+                steam_removed = SteamShortcuts.remove_shortcut(name=game_dir.name)
+            if not steam_removed:
+                steam_removed = SteamShortcuts.remove_shortcut(name=game_name)
 
-                # Also try by name (with underscores as stored, and with spaces)
-                if not steam_removed:
-                    steam_removed = SteamShortcuts.remove_shortcut(name=game_dir.name)
-                if not steam_removed:
-                    steam_removed = SteamShortcuts.remove_shortcut(name=game_name)
+            # Delete game files
+            shutil.rmtree(game_dir)
 
-                # Delete game files
-                shutil.rmtree(game_dir)
+            if steam_removed:
+                self.set_status(f"Uninstalled: {game_name} (removed from Steam)")
+            else:
+                self.set_status(f"Uninstalled: {game_name} (Steam shortcut not found)")
 
-                if steam_removed:
-                    self.set_status(f"Uninstalled: {game_name} (removed from Steam)")
-                else:
-                    self.set_status(f"Uninstalled: {game_name} (Steam shortcut not found)")
-
-                # Refresh the dialog
-                parent_dialog.destroy()
-                self.on_view_games()
-            except Exception as e:
-                self.show_message("Error", f"Failed to uninstall: {e}")
+            # Refresh the dialog
+            parent_dialog.destroy()
+            self.on_view_games()
+        except OSError as e:
+            self.show_message("Error", f"Failed to uninstall: {e}")
     
     def on_settings(self):
         """Open settings dialog - fullscreen for handheld devices"""
@@ -2900,38 +3016,57 @@ class RetroPackagerApp(Gtk.Window):
             self.set_status(f"Error saving API key: {e}")
 
     def _show_steam_shortcuts_dialog(self, parent_dialog):
-        """Show dialog listing all Steam shortcuts with option to remove individually"""
+        """Show fullscreen dialog listing all Steam shortcuts with option to remove individually"""
         dialog = Gtk.Dialog(
             title="Steam Shortcuts",
             parent=self,
             flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT
         )
-        dialog.add_buttons(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
-        dialog.set_default_size(600, 400)
+        dialog.fullscreen()
 
-        content = dialog.get_content_area()
-        content.set_spacing(12)
-        content.set_margin_start(16)
-        content.set_margin_end(16)
-        content.set_margin_top(16)
-        content.set_margin_bottom(16)
+        main_box = dialog.get_content_area()
+        main_box.set_spacing(0)
 
-        # Header
-        header = Gtk.Label(label="Non-Steam Game Shortcuts")
-        header.get_style_context().add_class('menu-button-title')
-        header.set_halign(Gtk.Align.START)
-        content.pack_start(header, False, False, 0)
+        # Header bar
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        header.set_margin_start(20)
+        header.set_margin_end(20)
+        header.set_margin_top(20)
+        header.set_margin_bottom(10)
 
-        hint = Gtk.Label(label="These are all non-Steam games in your library. Click 🗑️ to remove.")
-        hint.get_style_context().add_class('subtitle')
-        hint.set_halign(Gtk.Align.START)
-        content.pack_start(hint, False, False, 0)
+        back_btn = Gtk.Button(label="← Back")
+        back_btn.get_style_context().add_class('flat-button')
+        back_btn.connect('clicked', lambda w: dialog.destroy())
+        header.pack_start(back_btn, False, False, 0)
 
-        # Shortcuts list
+        title = Gtk.Label(label="Steam Shortcuts")
+        title.get_style_context().add_class('dialog-title')
+        header.pack_start(title, True, True, 0)
+
+        # Spacer for balance
+        spacer = Gtk.Label(label="")
+        spacer.set_size_request(80, -1)
+        header.pack_end(spacer, False, False, 0)
+
+        main_box.pack_start(header, False, False, 0)
+
+        # Scrollable content
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroll.set_vexpand(True)
 
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        content.set_margin_start(20)
+        content.set_margin_end(20)
+        content.set_margin_top(10)
+        content.set_margin_bottom(20)
+
+        hint = Gtk.Label(label="These are all non-Steam games in your library. Click 🗑️ to remove.")
+        hint.get_style_context().add_class('dialog-secondary')
+        hint.set_halign(Gtk.Align.START)
+        content.pack_start(hint, False, False, 0)
+
+        # Shortcuts list
         listbox = Gtk.ListBox()
         listbox.set_selection_mode(Gtk.SelectionMode.NONE)
 
@@ -2939,17 +3074,18 @@ class RetroPackagerApp(Gtk.Window):
 
         if not shortcuts:
             empty_label = Gtk.Label(label="No non-Steam shortcuts found.")
+            empty_label.get_style_context().add_class('dialog-message')
             empty_label.set_margin_top(20)
-            listbox.add(empty_label)
+            content.pack_start(empty_label, False, False, 0)
         else:
             for shortcut in shortcuts:
                 row = Gtk.ListBoxRow()
 
                 box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-                box.set_margin_start(8)
-                box.set_margin_end(8)
-                box.set_margin_top(6)
-                box.set_margin_bottom(6)
+                box.set_margin_start(12)
+                box.set_margin_end(12)
+                box.set_margin_top(10)
+                box.set_margin_bottom(10)
 
                 # Name
                 name_label = Gtk.Label(label=shortcut['name'])
@@ -2960,7 +3096,7 @@ class RetroPackagerApp(Gtk.Window):
                 # Tags
                 tags_str = ", ".join(shortcut['tags'][:3]) if shortcut['tags'] else "No tags"
                 tags_label = Gtk.Label(label=tags_str)
-                tags_label.get_style_context().add_class('subtitle')
+                tags_label.get_style_context().add_class('dialog-secondary')
                 box.pack_start(tags_label, False, False, 0)
 
                 # Remove button
@@ -2973,14 +3109,16 @@ class RetroPackagerApp(Gtk.Window):
                 row.add(box)
                 listbox.add(row)
 
-        scroll.add(listbox)
-        content.pack_start(scroll, True, True, 0)
+            content.pack_start(listbox, True, True, 0)
 
         # Count label
         count_label = Gtk.Label(label=f"Total: {len(shortcuts)} shortcuts")
-        count_label.get_style_context().add_class('subtitle')
+        count_label.get_style_context().add_class('dialog-secondary')
         count_label.set_halign(Gtk.Align.START)
         content.pack_start(count_label, False, False, 0)
+
+        scroll.add(content)
+        main_box.pack_start(scroll, True, True, 0)
 
         dialog.show_all()
         dialog.run()
@@ -2988,26 +3126,21 @@ class RetroPackagerApp(Gtk.Window):
 
     def _remove_single_shortcut(self, name, parent_dialog):
         """Remove a single shortcut and refresh the dialog"""
-        confirm = Gtk.MessageDialog(
-            transient_for=parent_dialog,
-            flags=Gtk.DialogFlags.MODAL,
-            message_type=Gtk.MessageType.WARNING,
-            buttons=Gtk.ButtonsType.YES_NO,
-            text=f"Remove '{name}' from Steam?"
-        )
-        confirm.format_secondary_text("This will remove the shortcut and its artwork. Game files will not be deleted.")
+        if not self.show_confirm(
+            f"Remove '{name}' from Steam?",
+            "This will remove the shortcut and its artwork.",
+            secondary="Game files will not be deleted.",
+            warning=True
+        ):
+            return
 
-        response = confirm.run()
-        confirm.destroy()
-
-        if response == Gtk.ResponseType.YES:
-            if SteamShortcuts.remove_shortcut(name=name):
-                self.set_status(f"Removed from Steam: {name}")
-                # Refresh the shortcuts dialog
-                parent_dialog.destroy()
-                self._show_steam_shortcuts_dialog(None)
-            else:
-                self.set_status(f"Failed to remove: {name}")
+        if SteamShortcuts.remove_shortcut(name=name):
+            self.set_status(f"Removed from Steam: {name}")
+            # Refresh the shortcuts dialog
+            parent_dialog.destroy()
+            self._show_steam_shortcuts_dialog(None)
+        else:
+            self.set_status(f"Failed to remove: {name}")
 
     def _remove_all_game_shortcuts(self, parent_dialog):
         """Remove all game shortcuts added by RetroPackager"""
@@ -3022,31 +3155,25 @@ class RetroPackagerApp(Gtk.Window):
             self.show_message("No Shortcuts", "No RetroPackager game shortcuts found in Steam.")
             return
 
-        confirm = Gtk.MessageDialog(
-            transient_for=parent_dialog,
-            flags=Gtk.DialogFlags.MODAL,
-            message_type=Gtk.MessageType.WARNING,
-            buttons=Gtk.ButtonsType.YES_NO,
-            text=f"Remove {len(retro_shortcuts)} game shortcuts from Steam?"
-        )
-        confirm.format_secondary_text(
-            "This will remove all PS1 and GBA game shortcuts added by RetroPackager.\n\n"
-            "Game files will NOT be deleted - only the Steam library entries.\n\n"
-            "Games:\n" + "\n".join(f"  • {s['name']}" for s in retro_shortcuts[:10]) +
-            (f"\n  ... and {len(retro_shortcuts) - 10} more" if len(retro_shortcuts) > 10 else "")
-        )
+        games_list = "\n".join(f"  • {s['name']}" for s in retro_shortcuts[:10])
+        if len(retro_shortcuts) > 10:
+            games_list += f"\n  ... and {len(retro_shortcuts) - 10} more"
 
-        response = confirm.run()
-        confirm.destroy()
+        if not self.show_confirm(
+            f"Remove {len(retro_shortcuts)} game shortcuts from Steam?",
+            "This will remove all PS1 and GBA game shortcuts added by RetroPackager.",
+            secondary=f"Game files will NOT be deleted - only the Steam library entries.\n\nGames:\n{games_list}",
+            warning=True
+        ):
+            return
 
-        if response == Gtk.ResponseType.YES:
-            # Remove shortcuts with RetroPackager tags
-            removed = SteamShortcuts.remove_shortcuts_by_tags(
-                ['PS1', 'PlayStation', 'GBA', 'Game Boy Advance', 'DuckStation', 'mGBA']
-            )
-            self.set_status(f"Removed {removed} shortcuts from Steam. Restart Steam to see changes.")
-            self.show_message("Shortcuts Removed",
-                f"Removed {removed} game shortcuts from Steam.\n\nRestart Steam to see changes.")
+        # Remove shortcuts with RetroPackager tags
+        removed = SteamShortcuts.remove_shortcuts_by_tags(
+            ['PS1', 'PlayStation', 'GBA', 'Game Boy Advance', 'DuckStation', 'mGBA']
+        )
+        self.set_status(f"Removed {removed} shortcuts from Steam. Restart Steam to see changes.")
+        self.show_message("Shortcuts Removed",
+            f"Removed {removed} game shortcuts from Steam.\n\nRestart Steam to see changes.")
 
     def _generate_frutiger_aero_assets(self):
         """Generate proper Frutiger Aero style graphics for Steam"""
@@ -3349,52 +3476,62 @@ class RetroPackagerApp(Gtk.Window):
     
     def _add_self_to_steam(self, parent_dialog):
         """Add RetroPackager to Steam library with Frutiger Aero artwork"""
-        
-        # Create progress dialog
+
+        # Create fullscreen progress dialog
         progress_dialog = Gtk.Dialog(
             title="Adding to Steam",
             parent=self,
             flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT
         )
-        progress_dialog.set_default_size(500, 300)
-        
-        content = progress_dialog.get_content_area()
-        content.set_spacing(12)
-        content.set_margin_start(20)
-        content.set_margin_end(20)
-        content.set_margin_top(20)
-        content.set_margin_bottom(20)
-        
+        progress_dialog.fullscreen()
+
+        main_box = progress_dialog.get_content_area()
+        main_box.set_valign(Gtk.Align.CENTER)
+        main_box.set_halign(Gtk.Align.CENTER)
+
+        # Content card
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        content.get_style_context().add_class('dialog-content')
+        content.set_size_request(600, 400)
+
         # Title
         title_label = Gtk.Label(label="Adding RetroPackager to Steam")
-        title_label.get_style_context().add_class('menu-button-title')
+        title_label.get_style_context().add_class('dialog-title')
+        title_label.set_halign(Gtk.Align.START)
         content.pack_start(title_label, False, False, 0)
-        
+
         # Progress bar
         progress_bar = Gtk.ProgressBar()
         progress_bar.set_show_text(True)
         progress_bar.set_text("Starting...")
+        progress_bar.get_style_context().add_class('progress')
         content.pack_start(progress_bar, False, False, 0)
-        
+
         # Log output
         log_scroll = Gtk.ScrolledWindow()
         log_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
-        log_scroll.set_min_content_height(180)
-        
+        log_scroll.set_vexpand(True)
+
         log_view = Gtk.TextView()
         log_view.set_editable(False)
         log_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
         log_view.set_monospace(True)
+        log_view.get_style_context().add_class('log-view')
         log_buffer = log_view.get_buffer()
         log_scroll.add(log_view)
         content.pack_start(log_scroll, True, True, 0)
-        
+
         # Close button (disabled until done)
+        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        btn_box.set_halign(Gtk.Align.END)
         close_btn = Gtk.Button(label="Close")
+        close_btn.get_style_context().add_class('accent-button')
         close_btn.set_sensitive(False)
         close_btn.connect('clicked', lambda w: progress_dialog.destroy())
-        content.pack_start(close_btn, False, False, 0)
-        
+        btn_box.pack_end(close_btn, False, False, 0)
+        content.pack_start(btn_box, False, False, 0)
+
+        main_box.pack_start(content, False, False, 0)
         progress_dialog.show_all()
         
         def log(msg):
@@ -4157,61 +4294,89 @@ class RetroPackagerApp(Gtk.Window):
         threading.Thread(target=fetch_files, daemon=True).start()
     
     def _show_file_selector(self, item_id, files):
-        """Show dialog to select which file to download"""
+        """Show fullscreen dialog to select which file to download"""
         dialog = Gtk.Dialog(
             title="Select File",
             parent=self,
             flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT
         )
-        dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, "Download & Install", Gtk.ResponseType.OK)
-        dialog.set_default_size(500, 400)
-        
-        content = dialog.get_content_area()
-        content.set_spacing(12)
-        content.set_margin_start(16)
-        content.set_margin_end(16)
-        content.set_margin_top(16)
-        
-        label = Gtk.Label(label=f"Select a file from {item_id}:")
-        label.set_halign(Gtk.Align.START)
-        content.pack_start(label, False, False, 0)
-        
+        dialog.fullscreen()
+
+        main_box = dialog.get_content_area()
+        main_box.set_spacing(0)
+
+        # Header bar
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        header.set_margin_start(20)
+        header.set_margin_end(20)
+        header.set_margin_top(20)
+        header.set_margin_bottom(10)
+
+        back_btn = Gtk.Button(label="← Cancel")
+        back_btn.get_style_context().add_class('flat-button')
+        back_btn.connect('clicked', lambda w: dialog.response(Gtk.ResponseType.CANCEL))
+        header.pack_start(back_btn, False, False, 0)
+
+        title = Gtk.Label(label="Select File")
+        title.get_style_context().add_class('dialog-title')
+        header.pack_start(title, True, True, 0)
+
+        download_btn = Gtk.Button(label="Download & Install")
+        download_btn.get_style_context().add_class('accent-button')
+        download_btn.connect('clicked', lambda w: dialog.response(Gtk.ResponseType.OK))
+        header.pack_end(download_btn, False, False, 0)
+
+        main_box.pack_start(header, False, False, 0)
+
+        # Subtitle
+        sub_label = Gtk.Label(label=f"Select a file from {item_id}:")
+        sub_label.get_style_context().add_class('dialog-message')
+        sub_label.set_halign(Gtk.Align.START)
+        sub_label.set_margin_start(20)
+        sub_label.set_margin_bottom(10)
+        main_box.pack_start(sub_label, False, False, 0)
+
+        # Scrollable file list
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroll.set_vexpand(True)
-        
+        scroll.set_margin_start(20)
+        scroll.set_margin_end(20)
+        scroll.set_margin_bottom(20)
+
         listbox = Gtk.ListBox()
         listbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
-        
+
         for f in files:
             row = Gtk.ListBoxRow()
             row.file_data = f
-            
+
             box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-            box.set_margin_start(8)
-            box.set_margin_end(8)
-            box.set_margin_top(8)
-            box.set_margin_bottom(8)
-            
+            box.set_margin_start(12)
+            box.set_margin_end(12)
+            box.set_margin_top(10)
+            box.set_margin_bottom(10)
+
             name_label = Gtk.Label(label=f['name'])
             name_label.set_halign(Gtk.Align.START)
             name_label.set_ellipsize(Pango.EllipsizeMode.MIDDLE)
+            name_label.get_style_context().add_class('dialog-message')
             box.pack_start(name_label, True, True, 0)
-            
+
             size_mb = f['size'] / (1024 * 1024)
             size_label = Gtk.Label(label=f"{size_mb:.1f} MB")
-            size_label.get_style_context().add_class('subtitle')
+            size_label.get_style_context().add_class('dialog-secondary')
             box.pack_end(size_label, False, False, 0)
-            
+
             row.add(box)
             listbox.add(row)
-        
+
         scroll.add(listbox)
-        content.pack_start(scroll, True, True, 0)
-        
+        main_box.pack_start(scroll, True, True, 0)
+
         dialog.show_all()
         response = dialog.run()
-        
+
         if response == Gtk.ResponseType.OK:
             selected_row = listbox.get_selected_row()
             if selected_row and hasattr(selected_row, 'file_data'):
@@ -4240,29 +4405,58 @@ class RetroPackagerApp(Gtk.Window):
         game_name = re.sub(r'\s*\[[^\]]*\]', '', game_name)
         game_name = game_name.strip()
         
-        # Confirm name
+        # Confirm name - fullscreen themed dialog
         name_dialog = Gtk.Dialog(title="Game Name", parent=self, flags=Gtk.DialogFlags.MODAL)
-        name_dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, "Install", Gtk.ResponseType.OK)
-        
-        content = name_dialog.get_content_area()
-        content.set_spacing(12)
-        content.set_margin_start(20)
-        content.set_margin_end(20)
-        content.set_margin_top(20)
-        content.set_margin_bottom(20)
-        
-        label = Gtk.Label(label="Enter name for this game:")
-        label.set_halign(Gtk.Align.START)
-        content.pack_start(label, False, False, 0)
-        
+        name_dialog.fullscreen()
+
+        main_box = name_dialog.get_content_area()
+        main_box.set_valign(Gtk.Align.CENTER)
+        main_box.set_halign(Gtk.Align.CENTER)
+
+        # Content card
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        content.get_style_context().add_class('dialog-content')
+        content.set_size_request(500, -1)
+
+        # Title
+        title_label = Gtk.Label(label="Enter Game Name")
+        title_label.get_style_context().add_class('dialog-title')
+        title_label.set_halign(Gtk.Align.START)
+        content.pack_start(title_label, False, False, 0)
+
+        # Subtitle
+        sub_label = Gtk.Label(label=f"File: {filename}")
+        sub_label.get_style_context().add_class('dialog-secondary')
+        sub_label.set_halign(Gtk.Align.START)
+        sub_label.set_ellipsize(Pango.EllipsizeMode.MIDDLE)
+        content.pack_start(sub_label, False, False, 0)
+
+        # Entry
         name_entry = Gtk.Entry()
         name_entry.set_text(game_name)
         name_entry.get_style_context().add_class('entry')
         content.pack_start(name_entry, False, False, 0)
-        
+
+        # Buttons
+        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        btn_box.set_halign(Gtk.Align.END)
+
+        cancel_btn = Gtk.Button(label="Cancel")
+        cancel_btn.get_style_context().add_class('flat-button')
+        cancel_btn.connect('clicked', lambda w: name_dialog.response(Gtk.ResponseType.CANCEL))
+        btn_box.pack_start(cancel_btn, False, False, 0)
+
+        install_btn = Gtk.Button(label="Install")
+        install_btn.get_style_context().add_class('accent-button')
+        install_btn.connect('clicked', lambda w: name_dialog.response(Gtk.ResponseType.OK))
+        btn_box.pack_start(install_btn, False, False, 0)
+
+        content.pack_start(btn_box, False, False, 0)
+
+        main_box.pack_start(content, False, False, 0)
         name_dialog.show_all()
         response = name_dialog.run()
-        
+
         if response == Gtk.ResponseType.OK:
             game_name = name_entry.get_text().strip()
             name_dialog.destroy()
@@ -4928,17 +5122,107 @@ cd {shlex.quote(str(game_dir))}
             subprocess.Popen(['bash', str(self.current_launch_path)])
     
     def show_message(self, title, message):
-        """Show a message dialog"""
-        dialog = Gtk.MessageDialog(
-            transient_for=self,
-            flags=Gtk.DialogFlags.MODAL,
-            message_type=Gtk.MessageType.INFO,
-            buttons=Gtk.ButtonsType.OK,
-            text=title
-        )
-        dialog.format_secondary_text(message)
+        """Show a themed fullscreen message dialog"""
+        dialog = Gtk.Dialog(parent=self, flags=Gtk.DialogFlags.MODAL)
+        dialog.fullscreen()
+
+        main_box = dialog.get_content_area()
+        main_box.set_valign(Gtk.Align.CENTER)
+        main_box.set_halign(Gtk.Align.CENTER)
+
+        # Content card
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        content.get_style_context().add_class('dialog-content')
+        content.set_size_request(500, -1)
+
+        # Title
+        title_label = Gtk.Label(label=title)
+        title_label.get_style_context().add_class('dialog-title')
+        title_label.set_halign(Gtk.Align.START)
+        content.pack_start(title_label, False, False, 0)
+
+        # Message
+        msg_label = Gtk.Label(label=message)
+        msg_label.get_style_context().add_class('dialog-message')
+        msg_label.set_halign(Gtk.Align.START)
+        msg_label.set_line_wrap(True)
+        msg_label.set_max_width_chars(50)
+        content.pack_start(msg_label, False, False, 0)
+
+        # OK button
+        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        btn_box.set_halign(Gtk.Align.END)
+        ok_btn = Gtk.Button(label="OK")
+        ok_btn.get_style_context().add_class('accent-button')
+        ok_btn.connect('clicked', lambda w: dialog.destroy())
+        btn_box.pack_end(ok_btn, False, False, 0)
+        content.pack_start(btn_box, False, False, 0)
+
+        main_box.pack_start(content, False, False, 0)
+        dialog.show_all()
         dialog.run()
         dialog.destroy()
+
+    def show_confirm(self, title, message, secondary=None, warning=False):
+        """Show a themed fullscreen confirmation dialog. Returns True if confirmed."""
+        dialog = Gtk.Dialog(parent=self, flags=Gtk.DialogFlags.MODAL)
+        dialog.fullscreen()
+
+        main_box = dialog.get_content_area()
+        main_box.set_valign(Gtk.Align.CENTER)
+        main_box.set_halign(Gtk.Align.CENTER)
+
+        # Content card
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        content.get_style_context().add_class('dialog-content')
+        if warning:
+            content.get_style_context().add_class('dialog-warning')
+        content.set_size_request(500, -1)
+
+        # Title
+        title_label = Gtk.Label(label=title)
+        title_label.get_style_context().add_class('dialog-title')
+        title_label.set_halign(Gtk.Align.START)
+        content.pack_start(title_label, False, False, 0)
+
+        # Message
+        msg_label = Gtk.Label(label=message)
+        msg_label.get_style_context().add_class('dialog-message')
+        msg_label.set_halign(Gtk.Align.START)
+        msg_label.set_line_wrap(True)
+        msg_label.set_max_width_chars(50)
+        content.pack_start(msg_label, False, False, 0)
+
+        # Secondary message
+        if secondary:
+            sec_label = Gtk.Label(label=secondary)
+            sec_label.get_style_context().add_class('dialog-secondary')
+            sec_label.set_halign(Gtk.Align.START)
+            sec_label.set_line_wrap(True)
+            sec_label.set_max_width_chars(50)
+            content.pack_start(sec_label, False, False, 0)
+
+        # Buttons
+        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        btn_box.set_halign(Gtk.Align.END)
+
+        no_btn = Gtk.Button(label="No")
+        no_btn.get_style_context().add_class('flat-button')
+        no_btn.connect('clicked', lambda w: dialog.response(Gtk.ResponseType.NO))
+        btn_box.pack_start(no_btn, False, False, 0)
+
+        yes_btn = Gtk.Button(label="Yes")
+        yes_btn.get_style_context().add_class('accent-button')
+        yes_btn.connect('clicked', lambda w: dialog.response(Gtk.ResponseType.YES))
+        btn_box.pack_start(yes_btn, False, False, 0)
+
+        content.pack_start(btn_box, False, False, 0)
+
+        main_box.pack_start(content, False, False, 0)
+        dialog.show_all()
+        response = dialog.run()
+        dialog.destroy()
+        return response == Gtk.ResponseType.YES
 
 
 # Legacy alias
