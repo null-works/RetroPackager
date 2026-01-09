@@ -2603,141 +2603,174 @@ class RetroPackagerApp(Gtk.Window):
                 self.show_message("Error", f"Failed to uninstall: {e}")
     
     def on_settings(self):
-        """Open settings dialog"""
+        """Open settings dialog - fullscreen for handheld devices"""
         dialog = Gtk.Dialog(
             title="Settings",
             parent=self,
             flags=Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT
         )
-        dialog.add_buttons(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
-        dialog.set_default_size(500, 300)
-        
-        content = dialog.get_content_area()
-        content.set_spacing(16)
-        content.set_margin_start(20)
-        content.set_margin_end(20)
+        dialog.fullscreen()
+
+        # Main container
+        main_box = dialog.get_content_area()
+        main_box.set_spacing(0)
+
+        # Header bar with back button
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        header.set_margin_start(20)
+        header.set_margin_end(20)
+        header.set_margin_top(20)
+        header.set_margin_bottom(10)
+
+        back_btn = Gtk.Button(label="← Back")
+        back_btn.get_style_context().add_class('flat-button')
+        back_btn.connect('clicked', lambda w: dialog.destroy())
+        header.pack_start(back_btn, False, False, 0)
+
+        title = Gtk.Label(label="Settings")
+        title.get_style_context().add_class('menu-button-title')
+        header.pack_start(title, True, True, 0)
+
+        # Spacer to balance the back button
+        spacer = Gtk.Label(label="")
+        spacer.set_size_request(80, -1)
+        header.pack_end(spacer, False, False, 0)
+
+        main_box.pack_start(header, False, False, 0)
+
+        # Scrollable content area
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroll.set_vexpand(True)
+
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        content.set_margin_start(40)
+        content.set_margin_end(40)
         content.set_margin_top(20)
-        content.set_margin_bottom(20)
-        
+        content.set_margin_bottom(40)
+
         # BIOS Section
         bios_label = Gtk.Label(label="PS1 BIOS File")
         bios_label.set_halign(Gtk.Align.START)
         bios_label.get_style_context().add_class('menu-button-title')
         content.pack_start(bios_label, False, False, 0)
-        
-        bios_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        
+
         self.bios_path_label = Gtk.Label(label=self._get_bios_status())
         self.bios_path_label.set_halign(Gtk.Align.START)
         self.bios_path_label.set_ellipsize(Pango.EllipsizeMode.MIDDLE)
-        bios_box.pack_start(self.bios_path_label, True, True, 0)
-        
+        content.pack_start(self.bios_path_label, False, False, 0)
+
         bios_btn = Gtk.Button(label="Select BIOS")
         bios_btn.get_style_context().add_class('accent-button')
         bios_btn.connect('clicked', self.on_select_bios)
-        bios_box.pack_end(bios_btn, False, False, 0)
-        
-        content.pack_start(bios_box, False, False, 0)
-        
+        content.pack_start(bios_btn, False, False, 8)
+
         # Output directories
+        separator1 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        content.pack_start(separator1, False, False, 12)
+
         out_label = Gtk.Label(label="Games Directories")
         out_label.set_halign(Gtk.Align.START)
         out_label.get_style_context().add_class('menu-button-title')
-        content.pack_start(out_label, False, False, 8)
-        
+        content.pack_start(out_label, False, False, 0)
+
         out_ps1_label = Gtk.Label(label=f"PS1: {OUTPUT_DIR_PS1}")
         out_ps1_label.set_halign(Gtk.Align.START)
         out_ps1_label.set_selectable(True)
         out_ps1_label.set_ellipsize(Pango.EllipsizeMode.MIDDLE)
         content.pack_start(out_ps1_label, False, False, 0)
-        
+
         out_gba_label = Gtk.Label(label=f"GBA: {OUTPUT_DIR_GBA}")
         out_gba_label.set_halign(Gtk.Align.START)
         out_gba_label.set_selectable(True)
         out_gba_label.set_ellipsize(Pango.EllipsizeMode.MIDDLE)
         content.pack_start(out_gba_label, False, False, 0)
-        
+
         # Steam status
+        separator2 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        content.pack_start(separator2, False, False, 12)
+
         steam_label = Gtk.Label(label="Steam Integration")
         steam_label.set_halign(Gtk.Align.START)
         steam_label.get_style_context().add_class('menu-button-title')
-        content.pack_start(steam_label, False, False, 8)
-        
+        content.pack_start(steam_label, False, False, 0)
+
         steam_user = SteamShortcuts.find_user_id()
         steam_status = f"✓ Found Steam user: {steam_user}" if steam_user else "⚠ Steam user not found"
         steam_status_label = Gtk.Label(label=steam_status)
         steam_status_label.set_halign(Gtk.Align.START)
         content.pack_start(steam_status_label, False, False, 0)
-        
+
         # SteamGridDB API Key
-        sgdb_label = Gtk.Label(label="SteamGridDB API Key (for cover artwork)")
+        separator3 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        content.pack_start(separator3, False, False, 12)
+
+        sgdb_label = Gtk.Label(label="SteamGridDB API Key")
         sgdb_label.set_halign(Gtk.Align.START)
         sgdb_label.get_style_context().add_class('menu-button-title')
-        content.pack_start(sgdb_label, False, False, 8)
-        
-        sgdb_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        
-        self.sgdb_entry = Gtk.Entry()
-        self.sgdb_entry.set_placeholder_text("Get free key at steamgriddb.com/profile/preferences/api")
-        self.sgdb_entry.set_text(self._load_sgdb_key())
-        self.sgdb_entry.set_visibility(False)  # Hide API key
-        sgdb_box.pack_start(self.sgdb_entry, True, True, 0)
-        
-        sgdb_save_btn = Gtk.Button(label="Save")
-        sgdb_save_btn.get_style_context().add_class('accent-button')
-        sgdb_save_btn.connect('clicked', lambda w: self._save_sgdb_key(self.sgdb_entry.get_text()))
-        sgdb_box.pack_end(sgdb_save_btn, False, False, 0)
-        
-        content.pack_start(sgdb_box, False, False, 0)
-        
-        sgdb_hint = Gtk.Label(label="Without API key, Archive.org thumbnails will be used (lower quality)")
+        content.pack_start(sgdb_label, False, False, 0)
+
+        sgdb_hint = Gtk.Label(label="For high-quality cover artwork (get free key at steamgriddb.com)")
         sgdb_hint.set_halign(Gtk.Align.START)
         sgdb_hint.get_style_context().add_class('subtitle')
         content.pack_start(sgdb_hint, False, False, 0)
-        
+
+        self.sgdb_entry = Gtk.Entry()
+        self.sgdb_entry.set_placeholder_text("Paste API key here")
+        self.sgdb_entry.set_text(self._load_sgdb_key())
+        self.sgdb_entry.set_visibility(False)
+        content.pack_start(self.sgdb_entry, False, False, 4)
+
+        sgdb_save_btn = Gtk.Button(label="Save API Key")
+        sgdb_save_btn.get_style_context().add_class('accent-button')
+        sgdb_save_btn.connect('clicked', lambda w: self._save_sgdb_key(self.sgdb_entry.get_text()))
+        content.pack_start(sgdb_save_btn, False, False, 8)
+
         # Add to Steam section
-        separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-        content.pack_start(separator, False, False, 12)
-        
+        separator4 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        content.pack_start(separator4, False, False, 12)
+
         steam_add_label = Gtk.Label(label="Add RetroPackager to Steam")
         steam_add_label.set_halign(Gtk.Align.START)
         steam_add_label.get_style_context().add_class('menu-button-title')
         content.pack_start(steam_add_label, False, False, 0)
-        
-        steam_add_hint = Gtk.Label(label="Launch this app from Gaming Mode with custom Frutiger Aero artwork")
+
+        steam_add_hint = Gtk.Label(label="Launch from Gaming Mode with Frutiger Aero artwork")
         steam_add_hint.set_halign(Gtk.Align.START)
         steam_add_hint.get_style_context().add_class('subtitle')
         content.pack_start(steam_add_hint, False, False, 0)
-        
+
         steam_add_btn = Gtk.Button(label="⭐ Add to Steam Library")
         steam_add_btn.get_style_context().add_class('accent-button')
         steam_add_btn.connect('clicked', lambda w: self._add_self_to_steam(dialog))
         content.pack_start(steam_add_btn, False, False, 8)
 
         # Manage Steam Shortcuts section
-        separator2 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-        content.pack_start(separator2, False, False, 12)
+        separator5 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        content.pack_start(separator5, False, False, 12)
 
         manage_label = Gtk.Label(label="Manage Steam Shortcuts")
         manage_label.set_halign(Gtk.Align.START)
         manage_label.get_style_context().add_class('menu-button-title')
         content.pack_start(manage_label, False, False, 0)
 
-        manage_hint = Gtk.Label(label="Remove game shortcuts from Steam")
+        manage_hint = Gtk.Label(label="View or remove game shortcuts from Steam library")
         manage_hint.set_halign(Gtk.Align.START)
         manage_hint.get_style_context().add_class('subtitle')
         content.pack_start(manage_hint, False, False, 0)
 
-        # Stack buttons vertically for smaller screens (ROG Ally, Steam Deck)
-        view_shortcuts_btn = Gtk.Button(label="📋 View Shortcuts")
+        view_shortcuts_btn = Gtk.Button(label="📋 View All Shortcuts")
         view_shortcuts_btn.get_style_context().add_class('flat-button')
         view_shortcuts_btn.connect('clicked', lambda w: self._show_steam_shortcuts_dialog(dialog))
         content.pack_start(view_shortcuts_btn, False, False, 4)
 
-        remove_all_btn = Gtk.Button(label="🗑️ Remove All Shortcuts")
+        remove_all_btn = Gtk.Button(label="🗑️ Remove All Game Shortcuts")
         remove_all_btn.get_style_context().add_class('flat-button')
         remove_all_btn.connect('clicked', lambda w: self._remove_all_game_shortcuts(dialog))
         content.pack_start(remove_all_btn, False, False, 4)
+
+        scroll.add(content)
+        main_box.pack_start(scroll, True, True, 0)
 
         dialog.show_all()
         dialog.run()
