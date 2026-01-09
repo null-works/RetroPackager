@@ -176,6 +176,18 @@ def async_operation():
    - `get_all_shortcuts()` - List all shortcuts with metadata
    - `remove_artwork(app_id)` - Clean up Steam grid images
 
+### UI Improvements
+1. **Settings dialog fullscreen**: Better visibility on ROG Ally / Steam Deck
+2. **EXIT button**: Added to home page header (top right)
+3. **Frutiger Aero artwork fix**: Fixed ellipse coordinate bug in `draw_glossy_orb()`
+4. **Bright Frutiger Aero theme**: Complete UI overhaul matching artwork generation:
+   - Sky gradient background (white-cyan to vibrant blue)
+   - Glossy glass bubble buttons with translucent gradients
+   - Frosted glass cards and panels
+   - Orb-like accent buttons with highlight effects
+   - Aurora-inspired status bar
+   - Red glossy exit button
+
 ## Testing Notes
 
 - No automated tests exist
@@ -184,11 +196,20 @@ def async_operation():
 
 ## UI Styling
 
-Uses Frutiger Aero inspired theme:
-- Dark blue-gray base: `#1a2a3a`
-- Aqua accent: `#00a8e8`
-- Success green: `#50c878`
-- CSS embedded in `CSS` variable (lines 671-1033)
+Uses authentic Frutiger Aero theme matching the artwork generation:
+- **Background**: Bright sky gradient (white-cyan `#e6f5ff` to vibrant blue `#1e8cdc`)
+- **Buttons**: Glossy glass bubble effect with white/translucent gradients
+- **Cards**: Frosted glass panels with white borders and soft shadows
+- **Accent**: Bright aqua `#00a8e8` with orb-like glossy gradients
+- **Text**: Dark blue `#1a3a5a` for readability on bright backgrounds
+- **Exit Button**: Glossy red orb-style button
+- CSS embedded in `CSS` variable (lines 679-1115)
+
+### Key Aero Effects
+- Multi-stop gradients mimicking glossy orb highlights
+- Inset shadows creating 3D bubble effect
+- White border highlights for glass-like appearance
+- Aurora-inspired status bar with green-cyan gradient
 
 ## Gamepad Navigation
 

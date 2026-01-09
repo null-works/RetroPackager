@@ -657,37 +657,42 @@ RecursiveScan = true
 """
 
 # === FRUTIGER AERO COLOR PALETTE ===
-# Balanced: Dark base for readability, glossy Aero accents
+# Bright sky gradient aesthetic with glossy glass elements
 COLORS = {
-    'bg_dark': '#1a2a3a',            # Dark blue-gray base
-    'bg_card': '#243444',            # Slightly lighter card
+    'sky_top': '#e6f5ff',            # Bright white-cyan sky top
+    'sky_mid': '#7ec8f0',            # Mid-tone sky blue
+    'sky_bottom': '#1e8cdc',         # Vibrant sky blue bottom
+    'glass': 'rgba(255, 255, 255, 0.25)',  # Glass overlay
+    'glass_border': 'rgba(255, 255, 255, 0.5)',  # Glass border
     'accent': '#00a8e8',             # Bright aqua
     'accent_light': '#4dc8ff',       # Light aqua
     'accent_glow': '#00d4ff',        # Glow color
-    'green': '#50c878',              # Success green
-    'text': '#ffffff',               # White text
-    'text_dim': '#94b4c8',           # Dimmed text
+    'green': '#50c878',              # Success green (aurora-like)
+    'text': '#1a3a5a',               # Dark blue text for readability
+    'text_light': '#ffffff',         # White text for dark elements
+    'text_dim': '#4a7090',           # Dimmed blue-gray text
     'success': '#50c878',
     'warning': '#f0a030',
+    'bubble': 'rgba(200, 230, 255, 0.4)',  # Glossy bubble tint
 }
 
 CSS = f"""
-/* === FRUTIGER AERO - BALANCED THEME === */
-/* Dark base for readability, glossy Aero highlights */
+/* === FRUTIGER AERO - BRIGHT SKY THEME === */
+/* Bright sky gradient with glossy glass elements and bubbly aesthetic */
 
 window {{
-    background: linear-gradient(180deg, 
-        #1a2a3a 0%,
-        #162535 50%,
-        #122030 100%);
+    background: linear-gradient(180deg,
+        {COLORS['sky_top']} 0%,
+        {COLORS['sky_mid']} 50%,
+        {COLORS['sky_bottom']} 100%);
 }}
 
 .title {{
     font-size: 28px;
     font-weight: bold;
     color: {COLORS['text']};
-    text-shadow: 0 0 20px rgba(0, 168, 232, 0.5),
-                 0 2px 4px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8),
+                 0 2px 8px rgba(0, 168, 232, 0.3);
 }}
 
 .subtitle {{
@@ -695,51 +700,55 @@ window {{
     color: {COLORS['text_dim']};
 }}
 
-/* Glass card with dark tint */
+/* Glass card - frosted glass effect */
 .card {{
     background: linear-gradient(180deg,
-        rgba(40, 60, 80, 0.9) 0%,
-        rgba(30, 50, 70, 0.95) 100%);
-    border-radius: 12px;
-    border: 1px solid rgba(0, 168, 232, 0.3);
+        rgba(255, 255, 255, 0.45) 0%,
+        rgba(255, 255, 255, 0.25) 100%);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
     padding: 16px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(30, 100, 180, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8),
+                inset 0 -1px 0 rgba(255, 255, 255, 0.3);
 }}
 
-/* Glossy buttons - Aero style on dark */
+/* Glossy bubble buttons - signature Aero style */
 .menu-button {{
     background: linear-gradient(180deg,
-        rgba(60, 90, 120, 0.9) 0%,
-        rgba(40, 65, 90, 0.95) 50%,
-        rgba(35, 55, 80, 0.98) 100%);
-    border-radius: 12px;
-    border: 1px solid rgba(0, 168, 232, 0.4);
+        rgba(255, 255, 255, 0.7) 0%,
+        rgba(255, 255, 255, 0.4) 45%,
+        rgba(200, 230, 255, 0.5) 55%,
+        rgba(150, 210, 255, 0.6) 100%);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
     padding: 14px 18px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.15),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 20px rgba(30, 100, 180, 0.25),
+                inset 0 2px 0 rgba(255, 255, 255, 0.9),
+                inset 0 -2px 4px rgba(100, 180, 255, 0.3);
 }}
 
 .menu-button:hover {{
     background: linear-gradient(180deg,
-        rgba(0, 168, 232, 0.3) 0%,
-        rgba(50, 80, 110, 0.95) 30%,
-        rgba(40, 70, 100, 0.98) 100%);
-    border-color: {COLORS['accent']};
-    box-shadow: 0 0 25px rgba(0, 168, 232, 0.3),
-                0 6px 20px rgba(0, 0, 0, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        rgba(255, 255, 255, 0.85) 0%,
+        rgba(255, 255, 255, 0.5) 45%,
+        rgba(180, 230, 255, 0.6) 55%,
+        rgba(130, 200, 255, 0.7) 100%);
+    border-color: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 6px 25px rgba(0, 168, 232, 0.35),
+                inset 0 2px 0 rgba(255, 255, 255, 1),
+                inset 0 -2px 6px rgba(100, 180, 255, 0.4);
 }}
 
 .menu-button:focus {{
     background: linear-gradient(180deg,
-        rgba(0, 200, 255, 0.35) 0%,
-        rgba(0, 168, 232, 0.25) 30%,
-        rgba(45, 75, 105, 0.98) 100%);
+        rgba(200, 240, 255, 0.9) 0%,
+        rgba(150, 220, 255, 0.6) 45%,
+        rgba(100, 200, 255, 0.7) 55%,
+        rgba(80, 180, 255, 0.8) 100%);
     border: 2px solid {COLORS['accent_light']};
     box-shadow: 0 0 30px rgba(0, 168, 232, 0.5),
-                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+                inset 0 2px 0 rgba(255, 255, 255, 0.9);
     outline: none;
 }}
 
@@ -747,6 +756,7 @@ window {{
     font-size: 16px;
     font-weight: bold;
     color: {COLORS['text']};
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
 }}
 
 .menu-button-subtitle {{
@@ -754,205 +764,227 @@ window {{
     color: {COLORS['text_dim']};
 }}
 
-/* Vibrant accent button */
+/* Vibrant glossy accent button - like a shiny orb */
 .accent-button {{
     background: linear-gradient(180deg,
-        {COLORS['accent_light']} 0%,
-        {COLORS['accent']} 50%,
+        #9de8ff 0%,
+        {COLORS['accent_light']} 40%,
+        {COLORS['accent']} 60%,
         #0088c0 100%);
     color: white;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 12px;
     padding: 10px 20px;
     font-weight: bold;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    box-shadow: 0 4px 15px rgba(0, 168, 232, 0.4),
-                inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    text-shadow: 0 1px 2px rgba(0, 60, 120, 0.5);
+    box-shadow: 0 6px 20px rgba(0, 168, 232, 0.5),
+                inset 0 2px 0 rgba(255, 255, 255, 0.5),
+                inset 0 -2px 4px rgba(0, 80, 160, 0.3);
 }}
 
 .accent-button:hover {{
     background: linear-gradient(180deg,
-        #6dd8ff 0%,
-        {COLORS['accent_light']} 50%,
+        #c0f0ff 0%,
+        #7dd8ff 40%,
+        {COLORS['accent_light']} 60%,
         {COLORS['accent']} 100%);
-    box-shadow: 0 0 25px rgba(0, 168, 232, 0.6),
-                0 6px 20px rgba(0, 168, 232, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 30px rgba(0, 168, 232, 0.6),
+                inset 0 2px 0 rgba(255, 255, 255, 0.7),
+                inset 0 -2px 6px rgba(0, 80, 160, 0.3);
 }}
 
 .accent-button:focus {{
     background: linear-gradient(180deg,
-        #7de0ff 0%,
-        #5dd0ff 50%,
+        #d0f5ff 0%,
+        #90e0ff 40%,
+        #60d0ff 60%,
         {COLORS['accent']} 100%);
     border: 2px solid white;
-    box-shadow: 0 0 30px rgba(0, 168, 232, 0.7);
+    box-shadow: 0 0 35px rgba(0, 200, 255, 0.7),
+                inset 0 2px 0 rgba(255, 255, 255, 0.8);
     outline: none;
 }}
 
-/* Secondary button */
+/* Secondary glass button */
 .flat-button {{
     background: linear-gradient(180deg,
-        rgba(60, 90, 120, 0.8) 0%,
-        rgba(45, 70, 95, 0.9) 100%);
+        rgba(255, 255, 255, 0.6) 0%,
+        rgba(255, 255, 255, 0.35) 45%,
+        rgba(200, 230, 255, 0.4) 100%);
     color: {COLORS['text']};
-    border: 1px solid rgba(0, 168, 232, 0.4);
-    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
     padding: 10px 20px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    box-shadow: 0 3px 12px rgba(30, 100, 180, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }}
 
 .flat-button:hover {{
     background: linear-gradient(180deg,
-        rgba(0, 168, 232, 0.25) 0%,
-        rgba(55, 85, 115, 0.9) 100%);
-    border-color: {COLORS['accent']};
-    box-shadow: 0 0 15px rgba(0, 168, 232, 0.3);
+        rgba(255, 255, 255, 0.75) 0%,
+        rgba(255, 255, 255, 0.45) 45%,
+        rgba(180, 220, 255, 0.5) 100%);
+    border-color: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 5px 18px rgba(0, 168, 232, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }}
 
 .flat-button:focus {{
     background: linear-gradient(180deg,
-        rgba(0, 200, 255, 0.3) 0%,
-        rgba(60, 90, 120, 0.9) 100%);
+        rgba(200, 240, 255, 0.8) 0%,
+        rgba(160, 220, 255, 0.5) 100%);
     border: 2px solid {COLORS['accent']};
     box-shadow: 0 0 20px rgba(0, 168, 232, 0.4);
     outline: none;
 }}
 
-/* Text input */
+/* Text input - frosted glass */
 .entry {{
     background: linear-gradient(180deg,
-        rgba(20, 35, 50, 0.95) 0%,
-        rgba(25, 40, 55, 0.98) 100%);
+        rgba(255, 255, 255, 0.85) 0%,
+        rgba(255, 255, 255, 0.7) 100%);
     color: {COLORS['text']};
-    border: 1px solid rgba(0, 168, 232, 0.3);
-    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 10px;
     padding: 10px;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow: inset 0 2px 4px rgba(30, 100, 180, 0.15),
+                0 2px 8px rgba(30, 100, 180, 0.1);
 }}
 
 .entry:focus {{
     border: 2px solid {COLORS['accent']};
     box-shadow: 0 0 15px rgba(0, 168, 232, 0.3),
-                inset 0 2px 4px rgba(0, 0, 0, 0.3);
+                inset 0 2px 4px rgba(30, 100, 180, 0.1);
 }}
 
-/* Status bar */
+/* Status bar - aurora-like gradient */
 .status-bar {{
     background: linear-gradient(90deg,
-        rgba(0, 168, 232, 0.2) 0%,
-        rgba(80, 200, 120, 0.15) 50%,
-        transparent 100%);
+        rgba(100, 255, 180, 0.3) 0%,
+        rgba(80, 220, 255, 0.25) 50%,
+        rgba(150, 200, 255, 0.2) 100%);
     padding: 8px 14px;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 12px;
     color: {COLORS['text']};
-    border-left: 3px solid {COLORS['accent']};
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }}
 
-/* Progress bar - glossy gradient */
+/* Progress bar - glossy orb-like gradient */
 .progress {{
-    background: rgba(20, 35, 50, 0.8);
-    border-radius: 10px;
-    min-height: 22px;
-    border: 1px solid rgba(0, 168, 232, 0.3);
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 12px;
+    min-height: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: inset 0 2px 4px rgba(30, 100, 180, 0.15);
 }}
 
 .progress trough {{
-    background: rgba(20, 35, 50, 0.8);
-    border-radius: 10px;
-    min-height: 22px;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 12px;
+    min-height: 24px;
 }}
 
 .progress progress {{
-    background: linear-gradient(90deg,
-        {COLORS['accent']} 0%,
-        {COLORS['accent_light']} 50%,
-        {COLORS['accent_glow']} 100%);
-    border-radius: 10px;
-    min-height: 22px;
-    box-shadow: 0 0 15px rgba(0, 168, 232, 0.5),
-                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    background: linear-gradient(180deg,
+        #9de8ff 0%,
+        {COLORS['accent_light']} 30%,
+        {COLORS['accent']} 70%,
+        #0088c0 100%);
+    border-radius: 12px;
+    min-height: 24px;
+    box-shadow: 0 0 20px rgba(0, 168, 232, 0.5),
+                inset 0 2px 0 rgba(255, 255, 255, 0.5),
+                inset 0 -2px 4px rgba(0, 80, 160, 0.3);
 }}
 
 .progress text {{
-    color: {COLORS['text']};
+    color: white;
     font-weight: bold;
     font-size: 11px;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 1px 2px rgba(0, 60, 120, 0.5);
 }}
 
-/* Scrollbar */
+/* Scrollbar - glossy bubble style */
 scrolledwindow {{
     background: transparent;
 }}
 
 scrollbar {{
-    background: transparent;
+    background: rgba(255, 255, 255, 0.2);
 }}
 
 scrollbar slider {{
     background: linear-gradient(90deg,
-        rgba(0, 168, 232, 0.4) 0%,
-        rgba(0, 200, 255, 0.5) 50%,
-        rgba(0, 168, 232, 0.4) 100%);
-    border-radius: 6px;
-    min-width: 8px;
+        rgba(150, 220, 255, 0.7) 0%,
+        rgba(200, 240, 255, 0.8) 50%,
+        rgba(150, 220, 255, 0.7) 100%);
+    border-radius: 8px;
+    min-width: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
 }}
 
 scrollbar slider:hover {{
     background: linear-gradient(90deg,
-        {COLORS['accent']} 0%,
+        {COLORS['accent_light']} 0%,
+        #a0e8ff 50%,
         {COLORS['accent_light']} 100%);
-    box-shadow: 0 0 8px rgba(0, 168, 232, 0.5);
+    box-shadow: 0 0 10px rgba(0, 168, 232, 0.5);
 }}
 
-/* Game cards */
+/* Game cards - glossy glass tiles */
 .game-card {{
     background: linear-gradient(180deg,
-        rgba(45, 65, 85, 0.9) 0%,
-        rgba(35, 55, 75, 0.95) 100%);
-    border-radius: 10px;
+        rgba(255, 255, 255, 0.5) 0%,
+        rgba(255, 255, 255, 0.3) 45%,
+        rgba(200, 230, 255, 0.35) 100%);
+    border-radius: 14px;
     padding: 4px;
-    border: 2px solid transparent;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 6px 20px rgba(30, 100, 180, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }}
 
 .game-card:hover {{
     background: linear-gradient(180deg,
-        rgba(0, 168, 232, 0.2) 0%,
-        rgba(45, 70, 95, 0.95) 100%);
-    border-color: rgba(0, 168, 232, 0.4);
-    box-shadow: 0 0 15px rgba(0, 168, 232, 0.2),
-                0 6px 15px rgba(0, 0, 0, 0.3);
+        rgba(255, 255, 255, 0.65) 0%,
+        rgba(255, 255, 255, 0.4) 45%,
+        rgba(180, 220, 255, 0.45) 100%);
+    border-color: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 25px rgba(0, 168, 232, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }}
 
 flowboxchild:selected .game-card {{
     background: linear-gradient(180deg,
-        rgba(0, 168, 232, 0.4) 0%,
-        rgba(0, 140, 200, 0.3) 100%);
-    border-color: {COLORS['accent']};
+        rgba(150, 220, 255, 0.6) 0%,
+        rgba(100, 200, 255, 0.5) 100%);
+    border-color: {COLORS['accent_light']};
 }}
 
 flowboxchild:focus .game-card {{
     border-color: {COLORS['accent']};
-    box-shadow: 0 0 25px rgba(0, 168, 232, 0.5);
+    box-shadow: 0 0 25px rgba(0, 168, 232, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }}
 
 flowboxchild:selected:focus .game-card {{
     background: linear-gradient(180deg,
-        rgba(0, 200, 255, 0.4) 0%,
-        rgba(0, 168, 232, 0.35) 100%);
+        rgba(130, 210, 255, 0.7) 0%,
+        rgba(80, 180, 255, 0.6) 100%);
     border-color: white;
-    box-shadow: 0 0 30px rgba(0, 168, 232, 0.6);
+    box-shadow: 0 0 35px rgba(0, 200, 255, 0.6),
+                inset 0 2px 0 rgba(255, 255, 255, 0.7);
 }}
 
 .game-title {{
     font-size: 13px;
     font-weight: bold;
     color: white;
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+    background: linear-gradient(transparent, rgba(30, 80, 140, 0.85));
     padding: 40px 8px 8px 8px;
+    text-shadow: 0 1px 3px rgba(0, 40, 80, 0.6);
 }}
 
 /* Packaging view */
@@ -960,18 +992,20 @@ flowboxchild:selected:focus .game-card {{
     font-size: 22px;
     font-weight: bold;
     color: {COLORS['text']};
-    text-shadow: 0 0 10px rgba(0, 168, 232, 0.3);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7),
+                 0 2px 8px rgba(0, 168, 232, 0.2);
 }}
 
 .packaging-step-done {{
-    color: {COLORS['green']};
+    color: #2a9050;
     font-weight: bold;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }}
 
 .packaging-step-active {{
-    color: {COLORS['accent_light']};
+    color: #0080c0;
     font-weight: bold;
-    text-shadow: 0 0 10px rgba(0, 168, 232, 0.5);
+    text-shadow: 0 0 10px rgba(0, 168, 232, 0.4);
 }}
 
 .packaging-step-pending {{
@@ -979,58 +1013,103 @@ flowboxchild:selected:focus .game-card {{
 }}
 
 .log-view {{
-    background: rgba(15, 25, 35, 0.95);
-    border-radius: 8px;
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.85) 0%,
+        rgba(255, 255, 255, 0.7) 100%);
+    border-radius: 10px;
     padding: 12px;
     font-family: monospace;
     font-size: 12px;
     color: {COLORS['text']};
-    border: 1px solid rgba(0, 168, 232, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: inset 0 2px 4px rgba(30, 100, 180, 0.1);
 }}
 
 .success-text {{
-    color: {COLORS['green']};
+    color: #2a9050;
     font-size: 18px;
     font-weight: bold;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }}
 
 .warning-text {{
-    color: {COLORS['warning']};
+    color: #c07020;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
 }}
 
-/* System toggle buttons */
+/* System toggle buttons - glossy pills */
 .system-button {{
     background: linear-gradient(180deg,
-        rgba(60, 90, 120, 0.8) 0%,
-        rgba(45, 70, 95, 0.9) 100%);
-    border: 1px solid rgba(0, 168, 232, 0.3);
-    border-radius: 20px;
+        rgba(255, 255, 255, 0.6) 0%,
+        rgba(255, 255, 255, 0.35) 45%,
+        rgba(200, 230, 255, 0.4) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 22px;
     padding: 8px 18px;
     font-size: 14px;
     font-weight: bold;
     color: {COLORS['text_dim']};
+    box-shadow: 0 3px 10px rgba(30, 100, 180, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }}
 
 .system-button:checked {{
     background: linear-gradient(180deg,
-        {COLORS['accent_light']} 0%,
-        {COLORS['accent']} 50%,
+        #9de8ff 0%,
+        {COLORS['accent_light']} 40%,
+        {COLORS['accent']} 60%,
         #0088c0 100%);
-    border-color: {COLORS['accent']};
+    border-color: rgba(255, 255, 255, 0.5);
     color: white;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    box-shadow: 0 0 20px rgba(0, 168, 232, 0.5),
-                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    text-shadow: 0 1px 2px rgba(0, 60, 120, 0.5);
+    box-shadow: 0 0 25px rgba(0, 168, 232, 0.5),
+                inset 0 2px 0 rgba(255, 255, 255, 0.5),
+                inset 0 -2px 4px rgba(0, 80, 160, 0.3);
 }}
 
 .system-button:hover {{
-    border-color: rgba(0, 168, 232, 0.6);
-    box-shadow: 0 0 10px rgba(0, 168, 232, 0.3);
+    border-color: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 5px 15px rgba(0, 168, 232, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }}
 
 .system-button:focus {{
     border: 2px solid {COLORS['accent']};
-    box-shadow: 0 0 15px rgba(0, 168, 232, 0.4);
+    box-shadow: 0 0 20px rgba(0, 168, 232, 0.4);
+    outline: none;
+}}
+
+/* Exit button - danger red with glossy orb style */
+.exit-button {{
+    background: linear-gradient(180deg,
+        #ff9999 0%,
+        #e06060 40%,
+        #c04040 60%,
+        #a03030 100%);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-weight: bold;
+    text-shadow: 0 1px 2px rgba(80, 0, 0, 0.5);
+    box-shadow: 0 4px 15px rgba(180, 60, 60, 0.4),
+                inset 0 2px 0 rgba(255, 255, 255, 0.4),
+                inset 0 -2px 4px rgba(100, 0, 0, 0.3);
+}}
+
+.exit-button:hover {{
+    background: linear-gradient(180deg,
+        #ffb0b0 0%,
+        #e87070 40%,
+        #d05050 60%,
+        #b04040 100%);
+    box-shadow: 0 6px 20px rgba(180, 60, 60, 0.5),
+                inset 0 2px 0 rgba(255, 255, 255, 0.5);
+}}
+
+.exit-button:focus {{
+    border: 2px solid white;
+    box-shadow: 0 0 25px rgba(200, 80, 80, 0.6);
     outline: none;
 }}
 """
@@ -2006,9 +2085,9 @@ class RetroPackagerApp(Gtk.Window):
 
         header_row.pack_start(title_box, True, True, 0)
 
-        # Exit button on right
+        # Exit button on right - glossy red Aero style
         exit_btn = Gtk.Button(label="✕ EXIT")
-        exit_btn.get_style_context().add_class('flat-button')
+        exit_btn.get_style_context().add_class('exit-button')
         exit_btn.connect('clicked', lambda w: Gtk.main_quit())
         exit_btn.set_valign(Gtk.Align.START)
         header_row.pack_end(exit_btn, False, False, 0)
