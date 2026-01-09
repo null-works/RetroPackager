@@ -896,8 +896,9 @@ Joy Mapping Gameshark =
 [Input-SDL-Control1]
 Version = 2.000000
 # Controller config mode: 0=Manual, 1=Auto with named device, 2=Fully automatic
-mode = 0
-device = 0
+mode = 1
+device = -1
+name = "Xbox"
 plugged = True
 plugin = 2
 mouse = False
