@@ -895,44 +895,32 @@ Joy Mapping Gameshark =
 
 [Input-SDL-Control1]
 Version = 2.000000
-# Controller config mode: 0=Manual, 1=Auto with named device, 2=Fully automatic
-mode = 1
+mode = 2
 device = -1
-name = "Xbox"
 plugged = True
 plugin = 2
 mouse = False
 MouseSensitivity = "2.00,2.00"
-# Deadzone and peak values for analog sticks
 AnalogDeadzone = "4096,4096"
 AnalogPeak = "32768,32768"
-# N64 D-Pad mapped to Xbox D-Pad (hat)
-DPad R = "hat(0 Right)"
-DPad L = "hat(0 Left)"
-DPad D = "hat(0 Down)"
-DPad U = "hat(0 Up)"
-# N64 Start = Xbox Start (button 7)
-Start = "button(7)"
-# N64 Z Trigger = Xbox Left Trigger (axis 2+)
-Z Trig = "axis(2+)"
-# N64 B = Xbox X (button 2)
-B Button = "button(2)"
-# N64 A = Xbox A (button 0)
-A Button = "button(0)"
-# N64 C buttons = Xbox Right Stick
-C Button R = "axis(3+)"
-C Button L = "axis(3-)"
-C Button D = "axis(4+)"
-C Button U = "axis(4-)"
-# N64 R Trigger = Xbox Right Bumper (button 5)
-R Trig = "button(5)"
-# N64 L Trigger = Xbox Left Bumper (button 4)
-L Trig = "button(4)"
+DPad R = ""
+DPad L = ""
+DPad D = ""
+DPad U = ""
+Start = ""
+Z Trig = ""
+B Button = ""
+A Button = ""
+C Button R = ""
+C Button L = ""
+C Button D = ""
+C Button U = ""
+R Trig = ""
+L Trig = ""
 Mempak switch = ""
 Rumblepak switch = ""
-# N64 Analog stick = Xbox Left Stick
-X Axis = "axis(0-,0+)"
-Y Axis = "axis(1-,1+)"
+X Axis = ""
+Y Axis = ""
 
 [Input-SDL-Control2]
 Version = 2.000000
