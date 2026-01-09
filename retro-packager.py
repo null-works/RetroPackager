@@ -1988,17 +1988,32 @@ class RetroPackagerApp(Gtk.Window):
         
         # Track buttons for gamepad navigation
         self.main_menu_buttons = []
-        
-        # Header
+
+        # Header row with title and exit button
+        header_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+
+        # Title and subtitle on left
+        title_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.title_label = Gtk.Label(label="RetroPackager")
         self.title_label.get_style_context().add_class('title')
         self.title_label.set_halign(Gtk.Align.START)
-        box.pack_start(self.title_label, False, False, 0)
-        
+        title_box.pack_start(self.title_label, False, False, 0)
+
         subtitle = Gtk.Label(label="Download • Package • Play")
         subtitle.get_style_context().add_class('subtitle')
         subtitle.set_halign(Gtk.Align.START)
-        box.pack_start(subtitle, False, False, 0)
+        title_box.pack_start(subtitle, False, False, 0)
+
+        header_row.pack_start(title_box, True, True, 0)
+
+        # Exit button on right
+        exit_btn = Gtk.Button(label="✕ EXIT")
+        exit_btn.get_style_context().add_class('flat-button')
+        exit_btn.connect('clicked', lambda w: Gtk.main_quit())
+        exit_btn.set_valign(Gtk.Align.START)
+        header_row.pack_end(exit_btn, False, False, 0)
+
+        box.pack_start(header_row, False, False, 0)
         
         # System toggle buttons
         system_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
