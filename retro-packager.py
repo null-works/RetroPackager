@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Retro Game Packager for Steam Deck
-Downloads, packages, and installs PS1 and GBA games directly to Steam
+Downloads, packages, and installs PS1, GBA, and N64 games directly to Steam
 """
 
 import gi
@@ -27,6 +27,7 @@ import requests
 SCRIPT_DIR = Path(__file__).parent.resolve()
 OUTPUT_DIR_PS1 = Path.home() / "Games" / "PS1"
 OUTPUT_DIR_GBA = Path.home() / "Games" / "GBA"
+OUTPUT_DIR_N64 = Path.home() / "Games" / "N64"
 OUTPUT_DIR = OUTPUT_DIR_PS1  # Default
 DOWNLOAD_DIR = Path.home() / "Games" / "downloads"
 EMULATOR_DIR = Path.home() / "Games" / "emulators"
@@ -74,6 +75,29 @@ SYSTEMS = {
         "launch_args": "-f",            # Fullscreen flag
         "launch_relative_rom": False,   # Use absolute ROM path in launch script
         "tags": ["GBA", "Game Boy Advance", "mGBA"],
+        "parse_cue_files": False,       # Not applicable
+    },
+    "n64": {
+        "name": "Nintendo 64",
+        "short": "N64",
+        "output_dir": OUTPUT_DIR_N64,
+        "emulator_url": "https://github.com/Rosalie241/RMG/releases/download/v0.8.8/RMG-Portable-Linux64-v0.8.8.AppImage",
+        "emulator_name": "RMG.AppImage",
+        "needs_bios": False,
+        "bios_files": [],
+        "extensions": [".z64", ".n64", ".v64", ".zip", ".7z"],
+        "icon": "🎲",
+        "color": "#008000",
+        # Installation config
+        "rom_extensions": [".z64", ".n64", ".v64"],  # Priority order for ROM detection
+        "emulator_portable": True,      # Copy emulator to game dir (portable mode)
+        "emulator_subdir": None,        # No shared dir, copied per-game
+        "needs_settings": True,         # Generate mupen64plus.cfg
+        "settings_dir": "RMG.AppImage.config/RMG",  # Portable config dir for RMG
+        "settings_file": "mupen64plus.cfg",  # Config filename
+        "launch_args": "--fullscreen",  # Fullscreen flag
+        "launch_relative_rom": False,   # Use absolute ROM path in launch script
+        "tags": ["N64", "Nintendo 64", "RMG"],
         "parse_cue_files": False,       # Not applicable
     }
 }
@@ -147,6 +171,9 @@ PS1_ARCHIVE_COLLECTIONS = {
 
 # GBA Archive.org item (file list browsing)
 GBA_ARCHIVE_ITEM = "GameboyAdvanceRomCollectionByGhostware"
+
+# N64 Archive.org item (file list browsing)
+N64_ARCHIVE_ITEM = "N64TOSEC"
 
 # Legacy compatibility
 ARCHIVE_COLLECTIONS = PS1_ARCHIVE_COLLECTIONS
@@ -495,6 +522,65 @@ GBA_GENRES = {
     "Mortal Kombat": ["Fighting"], "Tekken Advance": ["Fighting"],
 }
 
+# N64 Game Genre Database
+N64_GENRES = {
+    "Super Mario 64": ["Platformer", "Adventure"], "Mario Kart 64": ["Racing"],
+    "Mario Party": ["Party"], "Mario Party 2": ["Party"], "Mario Party 3": ["Party"],
+    "Mario Golf": ["Sports"], "Mario Tennis": ["Sports"],
+    "Paper Mario": ["RPG"], "Dr. Mario 64": ["Puzzle"],
+    "Legend of Zelda Ocarina of Time": ["Action", "Adventure", "RPG"],
+    "Legend of Zelda Majora's Mask": ["Action", "Adventure", "RPG"],
+    "GoldenEye 007": ["Shooter", "Action"], "Perfect Dark": ["Shooter", "Action"],
+    "Banjo-Kazooie": ["Platformer", "Adventure"], "Banjo-Tooie": ["Platformer", "Adventure"],
+    "Donkey Kong 64": ["Platformer", "Adventure"], "Diddy Kong Racing": ["Racing"],
+    "Conker's Bad Fur Day": ["Platformer", "Adventure"],
+    "Star Fox 64": ["Shooter", "Action"], "F-Zero X": ["Racing"],
+    "Wave Race 64": ["Racing"], "1080 Snowboarding": ["Sports"],
+    "Excitebike 64": ["Racing"], "Cruisin USA": ["Racing"], "Cruisin World": ["Racing"],
+    "Super Smash Bros": ["Fighting"], "Pokemon Stadium": ["RPG", "Strategy"],
+    "Pokemon Stadium 2": ["RPG", "Strategy"], "Pokemon Snap": ["Adventure"],
+    "Pokemon Puzzle League": ["Puzzle"], "Hey You Pikachu": ["Simulation"],
+    "Kirby 64": ["Platformer"], "Yoshi's Story": ["Platformer"],
+    "Starcraft 64": ["Strategy"], "Command & Conquer": ["Strategy"],
+    "Ogre Battle 64": ["Strategy", "RPG"], "Harvest Moon 64": ["Simulation"],
+    "Mystical Ninja Starring Goemon": ["Action", "Adventure"],
+    "Goemon's Great Adventure": ["Action", "Platformer"],
+    "Bomberman 64": ["Action", "Puzzle"], "Bomberman Hero": ["Action", "Platformer"],
+    "Turok Dinosaur Hunter": ["Shooter", "Action"], "Turok 2 Seeds of Evil": ["Shooter", "Action"],
+    "Turok 3 Shadow of Oblivion": ["Shooter", "Action"], "Turok Rage Wars": ["Shooter"],
+    "Doom 64": ["Shooter"], "Quake 64": ["Shooter"], "Duke Nukem 64": ["Shooter"],
+    "Resident Evil 2": ["Horror", "Action"], "Shadow Man": ["Action", "Adventure"],
+    "Castlevania 64": ["Action", "Adventure"], "Castlevania Legacy of Darkness": ["Action", "Adventure"],
+    "Body Harvest": ["Action", "Adventure"], "Jet Force Gemini": ["Shooter", "Action"],
+    "Blast Corps": ["Action", "Puzzle"], "Pilotwings 64": ["Simulation"],
+    "Sin and Punishment": ["Shooter", "Action"], "Mischief Makers": ["Platformer", "Action"],
+    "Rayman 2": ["Platformer"], "Rocket Robot on Wheels": ["Platformer"],
+    "Glover": ["Platformer"], "Chameleon Twist": ["Platformer"],
+    "Space Station Silicon Valley": ["Puzzle", "Platformer"],
+    "Snowboard Kids": ["Racing"], "Snowboard Kids 2": ["Racing"],
+    "Ridge Racer 64": ["Racing"], "San Francisco Rush": ["Racing"],
+    "Beetle Adventure Racing": ["Racing"], "Road Rash 64": ["Racing"],
+    "WCW vs NWO World Tour": ["Wrestling"], "WCW vs NWO Revenge": ["Wrestling"],
+    "WWF No Mercy": ["Wrestling"], "WWF WrestleMania 2000": ["Wrestling"],
+    "Tony Hawk's Pro Skater": ["Sports"], "Tony Hawk's Pro Skater 2": ["Sports"],
+    "Tony Hawk's Pro Skater 3": ["Sports"],
+    "NFL Blitz": ["Sports"], "NBA Jam": ["Sports"], "Wayne Gretzky Hockey": ["Sports"],
+    "International Superstar Soccer": ["Sports"], "FIFA 99": ["Sports"],
+    "Mortal Kombat Trilogy": ["Fighting"], "Mortal Kombat 4": ["Fighting"],
+    "Killer Instinct Gold": ["Fighting"], "Fighters Destiny": ["Fighting"],
+    "Flying Dragon": ["Fighting"], "ClayFighter 63 1/3": ["Fighting"],
+    "Wipeout 64": ["Racing"], "Extreme-G": ["Racing"], "Extreme-G 2": ["Racing"],
+    "Star Wars Rogue Squadron": ["Shooter", "Action"],
+    "Star Wars Episode I Racer": ["Racing"], "Star Wars Shadows of the Empire": ["Action"],
+    "Mission Impossible": ["Action", "Stealth"], "Winback": ["Action", "Shooter"],
+    "Army Men Sarges Heroes": ["Action", "Shooter"],
+    "Gauntlet Legends": ["Action", "RPG"], "Hybrid Heaven": ["Action", "RPG"],
+    "Quest 64": ["RPG"], "Aidyn Chronicles": ["RPG"],
+    "Tetrisphere": ["Puzzle"], "Wetrix": ["Puzzle"], "Bust-A-Move 2": ["Puzzle"],
+    "Rampage World Tour": ["Action"], "Rampage 2": ["Action"],
+    "Rush 2": ["Racing"], "Top Gear Rally": ["Racing"], "Top Gear Overdrive": ["Racing"],
+}
+
 # GBA Top Picks per genre
 GBA_TOP_PICKS = {
     "all": [
@@ -559,6 +645,94 @@ GBA_TOP_PICKS = {
     ],
 }
 
+# N64 Top Picks per genre
+N64_TOP_PICKS = {
+    "all": [
+        ("Super Mario 64", "mario64"),
+        ("Legend of Zelda - Ocarina of Time", "zelda_oot"),
+        ("GoldenEye 007", "goldeneye"),
+        ("Mario Kart 64", "mk64"),
+        ("Super Smash Bros", "smash64"),
+        ("Banjo-Kazooie", "banjo"),
+        ("Perfect Dark", "perfect_dark"),
+        ("Star Fox 64", "starfox"),
+        ("Paper Mario", "paper_mario"),
+        ("Donkey Kong 64", "dk64"),
+    ],
+    "platformer": [
+        ("Super Mario 64", "mario64"),
+        ("Banjo-Kazooie", "banjo"),
+        ("Banjo-Tooie", "banjo2"),
+        ("Donkey Kong 64", "dk64"),
+        ("Conker's Bad Fur Day", "conker"),
+        ("Rayman 2", "rayman2"),
+        ("Kirby 64", "kirby64"),
+        ("Yoshi's Story", "yoshi"),
+        ("Mischief Makers", "mischief"),
+        ("Rocket Robot on Wheels", "rocket_robot"),
+    ],
+    "action": [
+        ("Legend of Zelda - Ocarina of Time", "zelda_oot"),
+        ("Legend of Zelda - Majora's Mask", "zelda_mm"),
+        ("GoldenEye 007", "goldeneye"),
+        ("Perfect Dark", "perfect_dark"),
+        ("Star Fox 64", "starfox"),
+        ("Jet Force Gemini", "jfg"),
+        ("Turok 2 - Seeds of Evil", "turok2"),
+        ("Sin and Punishment", "sin_punishment"),
+        ("Body Harvest", "body_harvest"),
+        ("Blast Corps", "blastcorps"),
+    ],
+    "racing": [
+        ("Mario Kart 64", "mk64"),
+        ("Diddy Kong Racing", "dkr"),
+        ("F-Zero X", "fzerox"),
+        ("Wave Race 64", "waverace"),
+        ("Star Wars Episode I Racer", "sw_racer"),
+        ("Beetle Adventure Racing", "beetle"),
+        ("Excitebike 64", "excitebike"),
+        ("1080 Snowboarding", "1080"),
+        ("San Francisco Rush", "rush"),
+        ("Extreme-G", "extremeg"),
+    ],
+    "rpg": [
+        ("Paper Mario", "paper_mario"),
+        ("Legend of Zelda - Ocarina of Time", "zelda_oot"),
+        ("Legend of Zelda - Majora's Mask", "zelda_mm"),
+        ("Ogre Battle 64", "ogre64"),
+        ("Quest 64", "quest64"),
+        ("Hybrid Heaven", "hybrid"),
+        ("Gauntlet Legends", "gauntlet"),
+        ("Aidyn Chronicles", "aidyn"),
+        ("Harvest Moon 64", "hm64"),
+        ("Pokemon Stadium 2", "pokemon_stadium2"),
+    ],
+    "shooter": [
+        ("GoldenEye 007", "goldeneye"),
+        ("Perfect Dark", "perfect_dark"),
+        ("Turok Dinosaur Hunter", "turok"),
+        ("Turok 2 - Seeds of Evil", "turok2"),
+        ("Doom 64", "doom64"),
+        ("Quake 64", "quake64"),
+        ("Jet Force Gemini", "jfg"),
+        ("Star Wars Rogue Squadron", "rogue_squad"),
+        ("Duke Nukem 64", "duke64"),
+        ("Sin and Punishment", "sin_punishment"),
+    ],
+    "fighting": [
+        ("Super Smash Bros", "smash64"),
+        ("Killer Instinct Gold", "ki_gold"),
+        ("Mortal Kombat Trilogy", "mk_trilogy"),
+        ("Mortal Kombat 4", "mk4"),
+        ("Fighters Destiny", "fighters_dest"),
+        ("Flying Dragon", "flying_dragon"),
+        ("ClayFighter 63 1/3", "clayfighter"),
+        ("WWF No Mercy", "wwf_nomercy"),
+        ("WCW vs NWO Revenge", "wcw_revenge"),
+        ("WWF WrestleMania 2000", "wm2000"),
+    ],
+}
+
 def get_game_genre(game_name):
     """Look up genres for a game name using fuzzy matching"""
     import re
@@ -566,8 +740,8 @@ def get_game_genre(game_name):
     clean = re.sub(r'\s*[\(\[].*?[\)\]]', '', game_name)  # Remove (USA), [NTSC], etc
     clean = re.sub(r'\s+', ' ', clean).strip()
     
-    # Check both PS1 and GBA databases
-    all_genres = {**PS1_GENRES, **GBA_GENRES}
+    # Check PS1, GBA, and N64 databases
+    all_genres = {**PS1_GENRES, **GBA_GENRES, **N64_GENRES}
     
     # Try exact match first
     if clean in all_genres:
@@ -673,6 +847,187 @@ Enabled = false
 
 [GameList]
 RecursiveScan = true
+"""
+
+def get_n64_settings_template():
+    """Generate RMG/mupen64plus.cfg content with auto-detect controller via RMG-Input plugin"""
+    return """[64DD]
+IPL-ROM =
+
+[Core]
+Version = 1.010000
+OnScreenDisplay = True
+NoCompiledJump = False
+DisableExtraMem = False
+EnableDebugger = False
+CountPerOp = 0
+CountPerOpDenomPot = 0
+DelaySI = True
+RandomizeInterrupt = True
+ScreenshotPath =
+SaveStatePath =
+SaveSRAMPath =
+SharedDataPath =
+GbCameraVideoCaptureBackend1 =
+
+[Transferpak]
+GB-rom-1 =
+GB-ram-1 =
+
+[CoreEvents]
+Version = 1
+Joy Mapping Stop =
+Joy Mapping Fullscreen =
+Joy Mapping Save State =
+Joy Mapping Load State =
+Joy Mapping Increment Slot =
+Joy Mapping Reset =
+Joy Mapping Speed Down =
+Joy Mapping Speed Up =
+Joy Mapping Screenshot =
+Joy Mapping Pause =
+Joy Mapping Mute =
+Joy Mapping Increase Volume =
+Joy Mapping Decrease Volume =
+Joy Mapping Fast Forward =
+Joy Mapping Frame Advance =
+Joy Mapping Gameshark =
+
+[Input-SDL-Control1]
+Version = 2.000000
+mode = 2
+device = -1
+plugged = True
+plugin = 2
+mouse = False
+MouseSensitivity = "2.00,2.00"
+AnalogDeadzone = "4096,4096"
+AnalogPeak = "32768,32768"
+DPad R = ""
+DPad L = ""
+DPad D = ""
+DPad U = ""
+Start = ""
+Z Trig = ""
+B Button = ""
+A Button = ""
+C Button R = ""
+C Button L = ""
+C Button D = ""
+C Button U = ""
+R Trig = ""
+L Trig = ""
+Mempak switch = ""
+Rumblepak switch = ""
+X Axis = ""
+Y Axis = ""
+
+[Input-SDL-Control2]
+Version = 2.000000
+mode = 2
+device = -1
+plugged = False
+plugin = 2
+mouse = False
+
+[Input-SDL-Control3]
+Version = 2.000000
+mode = 2
+device = -1
+plugged = False
+plugin = 2
+mouse = False
+
+[Input-SDL-Control4]
+Version = 2.000000
+mode = 2
+device = -1
+plugged = False
+plugin = 2
+mouse = False
+
+[Rosalie's Mupen GUI]
+Version = 17
+GUI.HideCursorInEmulation = True
+GUI.HideCursorInFullscreenEmulation = True
+GUI.PauseEmulationOnFocusLoss = False
+GUI.ResumeEmulationOnFocus = True
+GUI.AutomaticFullscreen = True
+GUI.ConfirmDragDrop = False
+GUI.ShowVerboseLogMessages = False
+Keybind.StartROM =
+Keybind.StartCombo =
+Keybind.Shutdown =
+Keybind.RefreshROMList =
+Keybind.Exit =
+Keybind.SoftReset =
+Keybind.HardReset =
+Keybind.Resume =
+Keybind.GenerateBitmap =
+Keybind.LimitFPS =
+Keybind.SpeedFactor25 =
+Keybind.SpeedFactor50 =
+Keybind.SpeedFactor75 =
+Keybind.SpeedFactor100 =
+Keybind.SpeedFactor125 =
+Keybind.SpeedFactor150 =
+Keybind.SpeedFactor175 =
+Keybind.SpeedFactor200 =
+Keybind.SpeedFactor225 =
+Keybind.SpeedFactor250 =
+Keybind.SpeedFactor275 =
+Keybind.SpeedFactor300 =
+Keybind.SaveState =
+Keybind.SaveAs =
+Keybind.LoadState =
+Keybind.Load =
+Keybind.Cheats =
+Keybind.GSButton =
+Keybind.Fullscreen =
+Keybind.Settings =
+Keybind.IncreaseStateSlot =
+Keybind.DecreaseStateSlot =
+
+[Video-General]
+Fullscreen = True
+ScreenWidth = 1920
+ScreenHeight = 1080
+VerticalSync = True
+
+[Video-GLideN64]
+Version = 29
+MultiSampling = 0
+FXAA = False
+AspectRatio = 1
+BufferSwapMode = 2
+UseNativeResolutionFactor = 2
+bilinearMode = 1
+MaxAnisotropy = 0
+ShowFPS = False
+ShowVIS = False
+ShowPercent = False
+ShowInternalResolution = False
+ShowRenderingResolution = False
+MSAA = 0
+
+[Rosalie's Mupen GUI - Input Plugin Profile 0]
+Input_PluggedIn = True
+Input_DeviceType = 2
+Input_Deadzone = 15
+Input_Sensitivity = 100
+Input_Pak = 0
+
+[Rosalie's Mupen GUI - Input Plugin Profile 1]
+Input_PluggedIn = False
+Input_DeviceType = 0
+
+[Rosalie's Mupen GUI - Input Plugin Profile 2]
+Input_PluggedIn = False
+Input_DeviceType = 0
+
+[Rosalie's Mupen GUI - Input Plugin Profile 3]
+Input_PluggedIn = False
+Input_DeviceType = 0
 """
 
 # === FRUTIGER AERO COLOR PALETTE ===
@@ -2526,7 +2881,14 @@ class RetroPackagerApp(Gtk.Window):
         self.gba_toggle.connect('toggled', self._on_system_toggled, "gba")
         self.gba_toggle.set_can_focus(True)
         system_box.pack_start(self.gba_toggle, False, False, 0)
-        
+
+        self.n64_toggle = Gtk.ToggleButton(label="🎲 Nintendo 64")
+        self.n64_toggle.set_active(False)
+        self.n64_toggle.get_style_context().add_class('system-button')
+        self.n64_toggle.connect('toggled', self._on_system_toggled, "n64")
+        self.n64_toggle.set_can_focus(True)
+        system_box.pack_start(self.n64_toggle, False, False, 0)
+
         box.pack_start(system_box, False, False, 0)
         
         # BIOS/System status
@@ -2599,15 +2961,17 @@ class RetroPackagerApp(Gtk.Window):
         """Handle system toggle button"""
         if button.get_active():
             self.current_system = system
-            # Update other toggle
-            if system == "ps1":
-                self.gba_toggle.set_active(False)
-            else:
+            # Update other toggles - deactivate all except the selected one
+            if system != "ps1":
                 self.ps1_toggle.set_active(False)
-            
+            if system != "gba":
+                self.gba_toggle.set_active(False)
+            if system != "n64":
+                self.n64_toggle.set_active(False)
+
             # Update UI
             self._update_system_status()
-            
+
             # Clear search results when switching systems
             if hasattr(self, 'results_flow'):
                 for child in self.results_flow.get_children():
@@ -2618,20 +2982,24 @@ class RetroPackagerApp(Gtk.Window):
                 self.selected_item = None
             if hasattr(self, 'download_btn'):
                 self.download_btn.set_sensitive(False)
-            
+
             # Update status
-            system_name = "PlayStation" if system == "ps1" else "Game Boy Advance"
+            system_name = SYSTEMS[system]["name"]
             self.set_status(f"Switched to {system_name}")
     
     def _update_system_status(self):
         """Update the BIOS/system status label"""
-        if self.current_system == "gba":
-            self.bios_label.set_text("✓ No BIOS required (mGBA has built-in)")
+        system_config = SYSTEMS[self.current_system]
+        if not system_config["needs_bios"]:
+            # Systems without BIOS requirement (GBA, N64)
+            emulator_name = system_config["emulator_name"].replace(".AppImage", "")
+            self.bios_label.set_text(f"✓ No BIOS required ({emulator_name})")
             self.bios_label.get_style_context().remove_class('warning-text')
             self.bios_label.get_style_context().add_class('success-text')
             if hasattr(self, 'info_label'):
                 self.info_label.set_text("Browse Archive.org or select a local ROM • Play from Gaming Mode!")
         else:
+            # Systems requiring BIOS (PS1)
             bios_status = self._get_bios_status()
             self.bios_label.set_text(f"BIOS: {bios_status}")
             if "✓" in bios_status:
@@ -3050,11 +3418,11 @@ class RetroPackagerApp(Gtk.Window):
         listbox = Gtk.ListBox()
         listbox.set_selection_mode(Gtk.SelectionMode.NONE)
 
-        # Find installed games from both PS1 and GBA directories
+        # Find installed games from PS1, GBA, and N64 directories
         games_found = False
         all_games = []
 
-        for system_name, system_dir in [("PS1", OUTPUT_DIR_PS1), ("GBA", OUTPUT_DIR_GBA)]:
+        for system_name, system_dir in [("PS1", OUTPUT_DIR_PS1), ("GBA", OUTPUT_DIR_GBA), ("N64", OUTPUT_DIR_N64)]:
             if system_dir.exists():
                 for game_dir in system_dir.iterdir():
                     if game_dir.is_dir() and (game_dir / "launch.sh").exists():
@@ -3509,7 +3877,7 @@ class RetroPackagerApp(Gtk.Window):
 
         if not self.show_confirm(
             f"Remove {len(retro_shortcuts)} game shortcuts from Steam?",
-            "This will remove all PS1 and GBA game shortcuts added by RetroPackager.",
+            "This will remove all PS1, GBA, and N64 game shortcuts added by RetroPackager.",
             secondary=f"Game files will NOT be deleted - only the Steam library entries.\n\nGames:\n{games_list}",
             warning=True
         ):
@@ -3517,7 +3885,7 @@ class RetroPackagerApp(Gtk.Window):
 
         # Remove shortcuts with RetroPackager tags
         removed = SteamShortcuts.remove_shortcuts_by_tags(
-            ['PS1', 'PlayStation', 'GBA', 'Game Boy Advance', 'DuckStation', 'mGBA']
+            ['PS1', 'PlayStation', 'GBA', 'Game Boy Advance', 'N64', 'Nintendo 64', 'DuckStation', 'mGBA', 'RMG']
         )
         self.set_status(f"Removed {removed} shortcuts from Steam. Restart Steam to see changes.")
         self.show_message("Shortcuts Removed",
@@ -4118,12 +4486,15 @@ class RetroPackagerApp(Gtk.Window):
         query = self.search_entry.get_text().strip()
         region = self.language_combo.get_active_id()
         genre = self.genre_combo.get_active_id()
-        
+
         self.set_status("Searching...")
-        
+
         if self.current_system == "gba":
             # GBA: Browse file list from item
             self._search_gba(query, region, genre)
+        elif self.current_system == "n64":
+            # N64: Browse file list from item
+            self._search_n64(query, region, genre)
         else:
             # PS1: Use collection search
             self._search_ps1(query, None, region, genre)
@@ -4262,32 +4633,110 @@ class RetroPackagerApp(Gtk.Window):
                 GLib.idle_add(lambda: self.set_status(f"Search failed: {e}"))
         
         threading.Thread(target=search, daemon=True).start()
-    
+
+    def _search_n64(self, query, region, genre):
+        """Search N64 games by browsing item file list"""
+        def search():
+            try:
+                url = f"https://archive.org/metadata/{N64_ARCHIVE_ITEM}"
+                debug_log(f"Fetching N64 item: {url}")
+
+                with urllib.request.urlopen(url, timeout=30) as response:
+                    data = json.loads(response.read().decode())
+
+                valid_exts = ('.z64', '.n64', '.v64', '.zip')
+                results = []
+                query_lower = query.lower() if query else ""
+
+                for f in data.get('files', []):
+                    name = f.get('name', '')
+                    name_lower = name.lower()
+
+                    if not name_lower.endswith(valid_exts):
+                        continue
+
+                    if query_lower and query_lower not in name_lower:
+                        continue
+
+                    # Region filter
+                    if region and region != "all":
+                        if region == "usa" and not any(x in name for x in ['(USA)', '(U)', '[U]', '(En)']):
+                            continue
+                        elif region == "europe" and not any(x in name for x in ['(Europe)', '(E)', '[E]', '(PAL)']):
+                            continue
+                        elif region == "japan" and not any(x in name for x in ['(Japan)', '(J)', '[J]', '(Jpn)']):
+                            continue
+
+                    # Clean title
+                    title = name
+                    for ext in valid_exts:
+                        if title.lower().endswith(ext):
+                            title = title[:-len(ext)]
+
+                    results.append({
+                        'identifier': N64_ARCHIVE_ITEM,
+                        'filename': name,
+                        'title': title,
+                        'size': int(f.get('size', 0))
+                    })
+
+                results.sort(key=lambda x: x['title'].lower())
+
+                if len(results) > 200:
+                    results = results[:200]
+                    truncated = True
+                else:
+                    truncated = False
+
+                g = genre
+                q = query
+                def populate():
+                    shown = self._populate_results(results, g)
+                    status = f"Found {shown} games"
+                    if q:
+                        status += f" matching '{q}'"
+                    if truncated:
+                        status += " (first 200)"
+                    self.set_status(status)
+                GLib.idle_add(populate)
+
+            except Exception as e:
+                debug_log(f"N64 search error: {e}")
+                GLib.idle_add(lambda: self.set_status(f"Search failed: {e}"))
+
+        threading.Thread(target=search, daemon=True).start()
+
     def on_browse_top_picks(self, widget=None):
         """Show curated top picks for selected genre"""
         genre = self.genre_combo.get_active_id()
-        
+
         # Get picks for correct system
         if self.current_system == "gba":
             picks_db = GBA_TOP_PICKS
             system_name = "GBA"
+        elif self.current_system == "n64":
+            picks_db = N64_TOP_PICKS
+            system_name = "N64"
         else:
             picks_db = TOP_PICKS
             system_name = "PS1"
-        
+
         # Get picks for selected genre, default to "all"
         picks = picks_db.get(genre, picks_db.get("all", []))
         genre_name = "All Time Classics" if genre == "all" or genre is None else genre.upper()
-        
+
         if not picks:
             self.set_status(f"No {genre_name} picks available for {system_name}")
             return
-        
+
         self.set_status(f"Loading Top {system_name} {genre_name} picks...")
-        
+
         if self.current_system == "gba":
             # For GBA, search for these games in the file list
             self._search_gba_top_picks(picks, genre_name)
+        elif self.current_system == "n64":
+            # For N64, search for these games in the file list
+            self._search_n64_top_picks(picks, genre_name)
         else:
             # For PS1, convert to results format directly
             results = []
@@ -4296,7 +4745,7 @@ class RetroPackagerApp(Gtk.Window):
                     'identifier': item_id,
                     'title': title
                 })
-            
+
             # These are curated so don't apply genre filter again
             shown = self._populate_results(results, None)
             self.set_status(f"⭐ Top 10 {system_name} {genre_name} Games")
@@ -4378,7 +4827,83 @@ class RetroPackagerApp(Gtk.Window):
                 GLib.idle_add(lambda: self.set_status(f"Failed to load top picks: {e}"))
         
         threading.Thread(target=search, daemon=True).start()
-    
+
+    def _search_n64_top_picks(self, picks, genre_name):
+        """Search N64 collection for top picks by name"""
+        def search():
+            try:
+                url = f"https://archive.org/metadata/{N64_ARCHIVE_ITEM}"
+                with urllib.request.urlopen(url, timeout=30) as response:
+                    data = json.loads(response.read().decode())
+
+                valid_exts = ('.z64', '.n64', '.v64', '.zip')
+                all_files = []
+
+                for f in data.get('files', []):
+                    name = f.get('name', '')
+                    name_lower = name.lower()
+
+                    if not name_lower.endswith(valid_exts):
+                        continue
+
+                    all_files.append({
+                        'name': name,
+                        'size': int(f.get('size', 0))
+                    })
+
+                # Find matches for each pick
+                results = []
+                for title, _ in picks:
+                    # Search for title in filenames
+                    title_words = title.lower().split()[:3]  # First 3 words
+
+                    for f in all_files:
+                        name_lower = f['name'].lower()
+                        # Check if all title words appear in filename
+                        if all(word in name_lower for word in title_words):
+                            # Prefer USA region
+                            if '(usa)' in name_lower or '(u)' in name_lower:
+                                clean_title = f['name']
+                                for ext in valid_exts:
+                                    if clean_title.lower().endswith(ext):
+                                        clean_title = clean_title[:-len(ext)]
+
+                                results.append({
+                                    'identifier': N64_ARCHIVE_ITEM,
+                                    'filename': f['name'],
+                                    'title': clean_title,
+                                    'size': f['size']
+                                })
+                                break
+                    else:
+                        # No USA version, try any region
+                        for f in all_files:
+                            name_lower = f['name'].lower()
+                            if all(word in name_lower for word in title_words):
+                                clean_title = f['name']
+                                for ext in valid_exts:
+                                    if clean_title.lower().endswith(ext):
+                                        clean_title = clean_title[:-len(ext)]
+
+                                results.append({
+                                    'identifier': N64_ARCHIVE_ITEM,
+                                    'filename': f['name'],
+                                    'title': clean_title,
+                                    'size': f['size']
+                                })
+                                break
+
+                def populate():
+                    shown = self._populate_results(results, None)
+                    self.set_status(f"⭐ Found {shown} of {len(picks)} Top N64 {genre_name} Games")
+                GLib.idle_add(populate)
+
+            except Exception as e:
+                debug_log(f"N64 top picks error: {e}")
+                GLib.idle_add(lambda: self.set_status(f"Failed to load top picks: {e}"))
+
+        threading.Thread(target=search, daemon=True).start()
+
     def on_browse_recent(self, widget=None):
         """Browse recent additions via RSS"""
         # Use hardcoded default collection for PS1
@@ -4596,6 +5121,8 @@ class RetroPackagerApp(Gtk.Window):
                 # Get valid extensions for current system
                 if self.current_system == "gba":
                     valid_exts = ('.gba', '.gbc', '.gb', '.zip', '.7z')
+                elif self.current_system == "n64":
+                    valid_exts = ('.z64', '.n64', '.v64', '.zip', '.7z')
                 else:
                     valid_exts = ('.chd', '.iso', '.pbp', '.cue', '.bin', '.zip', '.7z')
                 
@@ -4622,6 +5149,11 @@ class RetroPackagerApp(Gtk.Window):
                         if name.endswith('.gba'): return 0
                         if name.endswith('.gbc'): return 1
                         if name.endswith('.gb'): return 2
+                        if name.endswith('.zip'): return 3
+                    elif self.current_system == "n64":
+                        if name.endswith('.z64'): return 0
+                        if name.endswith('.n64'): return 1
+                        if name.endswith('.v64'): return 2
                         if name.endswith('.zip'): return 3
                     else:
                         if name.endswith('.chd'): return 0
@@ -5064,11 +5596,21 @@ class RetroPackagerApp(Gtk.Window):
                     # Use shared emulator path
                     emulator_launch_path = shlex.quote(str(emulator_cache))
 
-                # Generate settings.ini if needed (PS1 specific)
+                # Generate settings if needed (PS1 or N64)
                 if system.get("needs_settings"):
-                    settings_content = get_settings_template(game_dir)
-                    (game_dir / "settings.ini").write_text(settings_content)
-                    self._log("✓ Created settings.ini")
+                    if system.get("settings_dir"):
+                        # N64: Create portable config directory structure
+                        settings_dir = game_dir / system["settings_dir"]
+                        settings_dir.mkdir(parents=True, exist_ok=True)
+                        settings_file = settings_dir / system["settings_file"]
+                        settings_content = get_n64_settings_template()
+                        settings_file.write_text(settings_content)
+                        self._log(f"✓ Created {system['settings_file']}")
+                    else:
+                        # PS1: Create settings.ini in game dir
+                        settings_content = get_settings_template(game_dir)
+                        (game_dir / "settings.ini").write_text(settings_content)
+                        self._log("✓ Created settings.ini")
 
                 # Build ROM path for launch script
                 if system.get("launch_relative_rom"):
@@ -5076,8 +5618,17 @@ class RetroPackagerApp(Gtk.Window):
                 else:
                     rom_launch_path = shlex.quote(str(rom_path))
 
-                # Create launch script
-                launch_script = f"""#!/bin/bash
+                # Create launch script with optional XDG_CONFIG_HOME for portable config
+                if system.get("settings_dir"):
+                    # Extract the base config dir (e.g., "RMG.AppImage.config" from "RMG.AppImage.config/RMG")
+                    config_base = system["settings_dir"].split("/")[0]
+                    launch_script = f"""#!/bin/bash
+cd {shlex.quote(str(game_dir))}
+export XDG_CONFIG_HOME="./{config_base}"
+{emulator_launch_path} {system['launch_args']} {rom_launch_path}
+"""
+                else:
+                    launch_script = f"""#!/bin/bash
 cd {shlex.quote(str(game_dir))}
 {emulator_launch_path} {system['launch_args']} {rom_launch_path}
 """
