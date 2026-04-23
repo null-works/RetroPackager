@@ -4284,9 +4284,27 @@ class RetroPackagerApp(Gtk.Window):
                 log("")
                 set_progress(0.4, "Finding Steam user...")
                 
-                # Get script path
+# Get script path
                 script_path = str(Path(__file__).resolve())
+                base_dir = Path(script_path).parent
                 log(f"📁 Script path: {script_path}")
+                
+                # CREATE BAZZITE/STEAM DECK WRAPPER SCRIPT
+                log("📝 Creating Game Mode wrapper script...")
+                import shlex
+                wrapper_path = base_dir / "launch.sh"
+                wrapper_script = f"""#!/bin/bash
+cd {shlex.quote(str(base_dir))}
+export GDK_BACKEND=x11
+source venv/bin/activate
+python retro-packager.py
+"""
+                wrapper_path.write_text(wrapper_script)
+                wrapper_path.chmod(0o755)
+                log("✓ Wrapper script created")
+                
+                # Override the path to use the wrapper instead of the raw python file
+                script_path = str(wrapper_path)
                 
                 # Find Steam user
                 log("🔍 Looking for Steam user...")
